@@ -31,11 +31,11 @@
 #include <unistd.h>
 #include <rfb/rfbconfig.h>
 
-
 #define RAWFB_MMAP 1
 #define RAWFB_FILE 2
 
-struct ece_ioctl_cmd {
+struct ece_ioctl_cmd
+{
     unsigned int framebuf;
     unsigned int gap_len;
     char *buf;
@@ -53,7 +53,8 @@ struct ece_ioctl_cmd {
 #define ECE_IOCSETLP _IOW(ECE_IOC_MAGIC, 3, struct ece_ioctl_cmd)
 #define ECE_IOC_MAXNR 3
 
-struct vcd_info {
+struct vcd_info
+{
     unsigned int vcd_fb;
     unsigned int pixelClock;
     unsigned int line_pitch;
@@ -77,14 +78,16 @@ struct vcd_info {
     int b_shift;
 };
 
-struct vcd_diff {
+struct vcd_diff
+{
     unsigned int x;
     unsigned int y;
     unsigned int w;
     unsigned int h;
 };
 
-struct nu_rfb {
+struct nu_rfb
+{
     struct vcd_info vcd_info;
     struct vcd_diff *diff_table;
     char *fake_fb;
@@ -106,19 +109,20 @@ struct nu_rfb {
     int fb_req;
 };
 
-struct nu_cl {
-	int id;
-	struct nu_rfb *nurfb;
+struct nu_cl
+{
+    int id;
+    struct nu_rfb *nurfb;
 };
 
-#define VCD_IOC_MAGIC     'v'
-#define VCD_IOCGETINFO  _IOR(VCD_IOC_MAGIC,  1, struct vcd_info)
-#define VCD_IOCSENDCMD  _IOW(VCD_IOC_MAGIC,  2, int)
-#define VCD_IOCCHKRES   _IOR(VCD_IOC_MAGIC,  3, int)
-#define VCD_IOCGETDIFF  _IOR(VCD_IOC_MAGIC,  4, struct vcd_diff)
-#define VCD_IOCDIFFCNT  _IOR(VCD_IOC_MAGIC,  5, int)
-#define VCD_IOCCHKDRES	_IOW(VCD_IOC_MAGIC,  6, int)
-#define VCD_IOC_MAXNR     6
+#define VCD_IOC_MAGIC 'v'
+#define VCD_IOCGETINFO _IOR(VCD_IOC_MAGIC, 1, struct vcd_info)
+#define VCD_IOCSENDCMD _IOW(VCD_IOC_MAGIC, 2, int)
+#define VCD_IOCCHKRES _IOR(VCD_IOC_MAGIC, 3, int)
+#define VCD_IOCGETDIFF _IOR(VCD_IOC_MAGIC, 4, struct vcd_diff)
+#define VCD_IOCDIFFCNT _IOR(VCD_IOC_MAGIC, 5, int)
+#define VCD_IOCCHKDRES _IOW(VCD_IOC_MAGIC, 6, int)
+#define VCD_IOC_MAXNR 6
 
 #define CAPTURE_FRAME 0
 #define CAPTURE_TWO_FRAMES 1

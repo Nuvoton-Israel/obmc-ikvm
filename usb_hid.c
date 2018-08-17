@@ -28,29 +28,29 @@
 #include "rfbnpcm750.h"
 #include "usb_hid.h"
 
-#define IDVENDOR            "/sys/kernel/config/usb_gadget/hid/idVendor"
-#define IDPRODUCT           "/sys/kernel/config/usb_gadget/hid/idProduct"
-#define BCDDEVICE           "/sys/kernel/config/usb_gadget/hid/bcdDevice"
-#define BCDUSB              "/sys/kernel/config/usb_gadget/hid/bcdUSB"
-#define BMAXPACKERSIZE0     "/sys/kernel/config/usb_gadget/hid/bMaxPacketSize0"
-#define SERIALNUMBER        "/sys/kernel/config/usb_gadget/hid/strings/0x409/serialnumber"
-#define MANUFACTURER        "/sys/kernel/config/usb_gadget/hid/strings/0x409/manufacturer"
-#define PRODUCT             "/sys/kernel/config/usb_gadget/hid/strings/0x409/product"
-#define MAXPOWER            "/sys/kernel/config/usb_gadget/hid/configs/c.1/MaxPower"
-#define USB0                "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0"
-#define USB1                "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1"
-#define CONF0               "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb0"
-#define CONF1               "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb1"
-#define K_PROROCOL          "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/protocol"
-#define K_SUBCLASS          "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/subclass"
-#define K_REPORTLENGTH      "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_length"
-#define K_REPORTDESC        "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_desc"
-#define M_PROROCOL          "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/protocol"
-#define M_SUBCLASS          "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/subclass"
-#define M_REPORTLENGTH      "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_length"
-#define M_REPORTDESC        "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_desc"
-#define CONFIGURATION       "/sys/kernel/config/usb_gadget/hid/configs/c.1/strings/0x409/configuration"
-#define UDC                 "/sys/kernel/config/usb_gadget/hid/UDC"
+#define IDVENDOR "/sys/kernel/config/usb_gadget/hid/idVendor"
+#define IDPRODUCT "/sys/kernel/config/usb_gadget/hid/idProduct"
+#define BCDDEVICE "/sys/kernel/config/usb_gadget/hid/bcdDevice"
+#define BCDUSB "/sys/kernel/config/usb_gadget/hid/bcdUSB"
+#define BMAXPACKERSIZE0 "/sys/kernel/config/usb_gadget/hid/bMaxPacketSize0"
+#define SERIALNUMBER "/sys/kernel/config/usb_gadget/hid/strings/0x409/serialnumber"
+#define MANUFACTURER "/sys/kernel/config/usb_gadget/hid/strings/0x409/manufacturer"
+#define PRODUCT "/sys/kernel/config/usb_gadget/hid/strings/0x409/product"
+#define MAXPOWER "/sys/kernel/config/usb_gadget/hid/configs/c.1/MaxPower"
+#define USB0 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0"
+#define USB1 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1"
+#define CONF0 "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb0"
+#define CONF1 "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb1"
+#define K_PROROCOL "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/protocol"
+#define K_SUBCLASS "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/subclass"
+#define K_REPORTLENGTH "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_length"
+#define K_REPORTDESC "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_desc"
+#define M_PROROCOL "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/protocol"
+#define M_SUBCLASS "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/subclass"
+#define M_REPORTLENGTH "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_length"
+#define M_REPORTDESC "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_desc"
+#define CONFIGURATION "/sys/kernel/config/usb_gadget/hid/configs/c.1/strings/0x409/configuration"
+#define UDC "/sys/kernel/config/usb_gadget/hid/UDC"
 
 #define MOUSE_ABS_RES 2032
 
@@ -62,131 +62,128 @@ static int mouse_fd = -1;
 static int keyboard_fd = -1;
 
 static const unsigned char hid_report_mouse[] =
-{
-    USAGE_PAGE,		0x01,			/* Usage Page (Generic Desktop) */
-    USAGE,			0x02,			/* Usage (Mouse) */
-    COLLECTION,		0x01,			/* Collection (Application) */
-    USAGE,			0x01,			/*   Usage (Pointer) */
-    COLLECTION,		0x00,			/*     Collection (Physical) */
-    USAGE_PAGE,		0x09,			/*     Usage Page (Buttons) */
-    USAGE_MIN,		0x01,			/*     Usage Minimum (1) */
-    USAGE_MAX,		0x03,			/*     Usage Maximum (3) */
-    LOGICAL_MIN,	0x00,			/*     Logical Minimum (0) */
-    LOGICAL_MAX,	0x01,			/*     Logical Maximum (1) */
-    REPORT_COUNT,	0x08,			/*     Report Count (8) */
-    REPORT_SIZE,	0x01,			/*     Report Size (1) */
-    INPUT,			0x02,			/*     Input (Data, Variable, Absolute) */
-    USAGE_PAGE,		0x01,			/*     Usage Page (Generic Desktop) */
-    USAGE,			0x30,			/*     Usage (X) */
-    USAGE,			0x31,			/*     Usage (Y) */
-    0x35,			0x00,			/*     PHYSICAL_MINIMUM (0) */
-    0x46,			0xf0, 0x07,	/*     PHYSICAL_MAXIMUM (2032) */
-    LOGICAL_MIN,	0x00,			/*     LOGICAL_MINIMUM (0) */
-    0x26,			0xf0, 0x07,	/*     LOGICAL_MAXIMUM (2032) */
-    0x65,			0x11,			/*     UNIT (SI Lin:Distance) */
-    0x55,			0x0e,			/*     UNIT_EXPONENT (-2) */
-    REPORT_SIZE,	0x10,			/* 	    REPORT_SIZE (16) */
-    REPORT_COUNT,	0x02,			/* 	    REPORT_COUNT (2) */
-    INPUT,			0x02,			/* 	    INPUT (Data,Var,Abs) */
-    USAGE,			0x38,			/* 	    Usage (Wheel) */
-    LOGICAL_MIN,	0xff,			/* 	    LOGICAL_MINIMUM (-1) */
-    LOGICAL_MAX,	0x01,			/* 	    LOGICAL_MAXIMUM (1) */
-    0x35, 			0,				/* 	    PHYSICAL_MINIMUM (-127) */
-    0x45, 			0,				/* 	    PHYSICAL_MAXIMUM (127) */
-    REPORT_SIZE,	0x08,			/* 		REPORT_SIZE (8) */
-    REPORT_COUNT,	0x01,			/* 		REPORT_COUNT (1) */
-    INPUT,			0x06,			/* 		INPUT (Data,Var,Rel) */
-    END_COLLECTION,
-    END_COLLECTION
-};
-
+    {
+        USAGE_PAGE, 0x01,   /* Usage Page (Generic Desktop) */
+        USAGE, 0x02,        /* Usage (Mouse) */
+        COLLECTION, 0x01,   /* Collection (Application) */
+        USAGE, 0x01,        /*   Usage (Pointer) */
+        COLLECTION, 0x00,   /*     Collection (Physical) */
+        USAGE_PAGE, 0x09,   /*     Usage Page (Buttons) */
+        USAGE_MIN, 0x01,    /*     Usage Minimum (1) */
+        USAGE_MAX, 0x03,    /*     Usage Maximum (3) */
+        LOGICAL_MIN, 0x00,  /*     Logical Minimum (0) */
+        LOGICAL_MAX, 0x01,  /*     Logical Maximum (1) */
+        REPORT_COUNT, 0x08, /*     Report Count (8) */
+        REPORT_SIZE, 0x01,  /*     Report Size (1) */
+        INPUT, 0x02,        /*     Input (Data, Variable, Absolute) */
+        USAGE_PAGE, 0x01,   /*     Usage Page (Generic Desktop) */
+        USAGE, 0x30,        /*     Usage (X) */
+        USAGE, 0x31,        /*     Usage (Y) */
+        0x35, 0x00,         /*     PHYSICAL_MINIMUM (0) */
+        0x46, 0xf0, 0x07,   /*     PHYSICAL_MAXIMUM (2032) */
+        LOGICAL_MIN, 0x00,  /*     LOGICAL_MINIMUM (0) */
+        0x26, 0xf0, 0x07,   /*     LOGICAL_MAXIMUM (2032) */
+        0x65, 0x11,         /*     UNIT (SI Lin:Distance) */
+        0x55, 0x0e,         /*     UNIT_EXPONENT (-2) */
+        REPORT_SIZE, 0x10,  /* 	    REPORT_SIZE (16) */
+        REPORT_COUNT, 0x02, /* 	    REPORT_COUNT (2) */
+        INPUT, 0x02,        /* 	    INPUT (Data,Var,Abs) */
+        USAGE, 0x38,        /* 	    Usage (Wheel) */
+        LOGICAL_MIN, 0xff,  /* 	    LOGICAL_MINIMUM (-1) */
+        LOGICAL_MAX, 0x01,  /* 	    LOGICAL_MAXIMUM (1) */
+        0x35, 0,            /* 	    PHYSICAL_MINIMUM (-127) */
+        0x45, 0,            /* 	    PHYSICAL_MAXIMUM (127) */
+        REPORT_SIZE, 0x08,  /* 		REPORT_SIZE (8) */
+        REPORT_COUNT, 0x01, /* 		REPORT_COUNT (1) */
+        INPUT, 0x06,        /* 		INPUT (Data,Var,Rel) */
+        END_COLLECTION,
+        END_COLLECTION};
 
 /* keyboard Report descriptor */
 static const unsigned char hid_report_keyboard[] =
-{
-    USAGE_PAGE,    0x01,
-    USAGE,         0x06,
-    COLLECTION,    0x01,
-    USAGE_PAGE,    0x07,
-    USAGE_MIN,     0xE0,
-    USAGE_MAX,     0xE7,
-    LOGICAL_MIN,   0x00,
-    LOGICAL_MAX,   0x01,
-    REPORT_SIZE,   0x01,
-    REPORT_COUNT,  0x08,
-    INPUT,         0x02,
-    REPORT_COUNT,  0x01,
-    REPORT_SIZE,   0x08,
-    INPUT,         0x01,
-    REPORT_COUNT,  0x05,
-    REPORT_SIZE,   0x01,
-    USAGE_PAGE,    0x08,
-    USAGE_MIN,     0x01,
-    USAGE_MAX,     0x05,
-    OUTPUT,        0x02,
-    REPORT_COUNT,  0x01,
-    REPORT_SIZE,   0x03,
-    OUTPUT,        0x01,
-    USAGE_PAGE,    0x07,
-    REPORT_COUNT,  0x06,
-    REPORT_SIZE,   0x08,
-    LOGICAL_MIN,   0x00,
-    0x26,
-    LAST_ITEM,     0x00,
-    USAGE_MIN,     0x00,
-    0x2A,
-    LAST_ITEM,     0x00,
-    INPUT,         0x00,
-    END_COLLECTION
-};
+    {
+        USAGE_PAGE, 0x01,
+        USAGE, 0x06,
+        COLLECTION, 0x01,
+        USAGE_PAGE, 0x07,
+        USAGE_MIN, 0xE0,
+        USAGE_MAX, 0xE7,
+        LOGICAL_MIN, 0x00,
+        LOGICAL_MAX, 0x01,
+        REPORT_SIZE, 0x01,
+        REPORT_COUNT, 0x08,
+        INPUT, 0x02,
+        REPORT_COUNT, 0x01,
+        REPORT_SIZE, 0x08,
+        INPUT, 0x01,
+        REPORT_COUNT, 0x05,
+        REPORT_SIZE, 0x01,
+        USAGE_PAGE, 0x08,
+        USAGE_MIN, 0x01,
+        USAGE_MAX, 0x05,
+        OUTPUT, 0x02,
+        REPORT_COUNT, 0x01,
+        REPORT_SIZE, 0x03,
+        OUTPUT, 0x01,
+        USAGE_PAGE, 0x07,
+        REPORT_COUNT, 0x06,
+        REPORT_SIZE, 0x08,
+        LOGICAL_MIN, 0x00,
+        0x26,
+        LAST_ITEM, 0x00,
+        USAGE_MIN, 0x00,
+        0x2A,
+        LAST_ITEM, 0x00,
+        INPUT, 0x00,
+        END_COLLECTION};
 
 static KeyInfo keyArray[] = {
-    {KEY_A,	XK_A},
-    {KEY_B,	XK_B},
-    {KEY_C,	XK_C},
-    {KEY_D,	XK_D},
-    {KEY_E,	XK_E},
-    {KEY_F,	XK_F},
-    {KEY_G,	XK_G},
-    {KEY_H,	XK_H},
-    {KEY_I,	XK_I},
-    {KEY_J,	XK_J},
-    {KEY_K,	XK_K},
-    {KEY_L,	XK_L},
-    {KEY_M,	XK_M},
-    {KEY_N,	XK_N},
-    {KEY_O,	XK_O},
-    {KEY_P,	XK_P},
-    {KEY_Q,	XK_Q},
-    {KEY_R,	XK_R},
-    {KEY_S,	XK_S},
-    {KEY_T,	XK_T},
-    {KEY_U,	XK_U},
-    {KEY_V,	XK_V},
-    {KEY_W,	XK_W},
-    {KEY_X,	XK_X},
-    {KEY_Y,	XK_Y},
-    {KEY_Z,	XK_Z},
-    {KEY_1,	XK_exclam},
-    {KEY_2,	XK_at},
-    {KEY_3,	XK_numbersign},
-    {KEY_4,	XK_dollar},
-    {KEY_5,	XK_percent},
-    {KEY_6,	XK_asciicircum},
-    {KEY_7,	XK_ampersand},
-    {KEY_8,	XK_asterisk},
-    {KEY_9,	XK_parenleft},
-    {KEY_0,	XK_parenright},
-    {KEY_1,	XK_1},
-    {KEY_2,	XK_2},
-    {KEY_3,	XK_3},
-    {KEY_4,	XK_4},
-    {KEY_5,	XK_5},
-    {KEY_6,	XK_6},
-    {KEY_7,	XK_7},
-    {KEY_8,	XK_8},
-    {KEY_9,	XK_9},
-    {KEY_0,	XK_0},
+    {KEY_A, XK_A},
+    {KEY_B, XK_B},
+    {KEY_C, XK_C},
+    {KEY_D, XK_D},
+    {KEY_E, XK_E},
+    {KEY_F, XK_F},
+    {KEY_G, XK_G},
+    {KEY_H, XK_H},
+    {KEY_I, XK_I},
+    {KEY_J, XK_J},
+    {KEY_K, XK_K},
+    {KEY_L, XK_L},
+    {KEY_M, XK_M},
+    {KEY_N, XK_N},
+    {KEY_O, XK_O},
+    {KEY_P, XK_P},
+    {KEY_Q, XK_Q},
+    {KEY_R, XK_R},
+    {KEY_S, XK_S},
+    {KEY_T, XK_T},
+    {KEY_U, XK_U},
+    {KEY_V, XK_V},
+    {KEY_W, XK_W},
+    {KEY_X, XK_X},
+    {KEY_Y, XK_Y},
+    {KEY_Z, XK_Z},
+    {KEY_1, XK_exclam},
+    {KEY_2, XK_at},
+    {KEY_3, XK_numbersign},
+    {KEY_4, XK_dollar},
+    {KEY_5, XK_percent},
+    {KEY_6, XK_asciicircum},
+    {KEY_7, XK_ampersand},
+    {KEY_8, XK_asterisk},
+    {KEY_9, XK_parenleft},
+    {KEY_0, XK_parenright},
+    {KEY_1, XK_1},
+    {KEY_2, XK_2},
+    {KEY_3, XK_3},
+    {KEY_4, XK_4},
+    {KEY_5, XK_5},
+    {KEY_6, XK_6},
+    {KEY_7, XK_7},
+    {KEY_8, XK_8},
+    {KEY_9, XK_9},
+    {KEY_0, XK_0},
     {KEY_F1, XK_F1},
     {KEY_F2, XK_F2},
     {KEY_F3, XK_F3},
@@ -277,8 +274,7 @@ static KeyInfo keyArray[] = {
     {KEY_COMPOSE, XK_Menu},
     {0x08, XK_Super_L},
     {0x80, XK_Super_R},
-    {0,	0}
-};
+    {0, 0}};
 
 static struct hid_init_desc _hid_init_desc[] = {
     DESC(IDVENDOR, "0x046d", 8),
@@ -305,7 +301,8 @@ static unsigned char keyboard_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static int last_write = 2;
 static unsigned char mod = 0;
 
-static int keyboard_iow(int down, unsigned long keysym) {
+static int keyboard_iow(int down, unsigned long keysym)
+{
     int i = 0;
     unsigned char code = 0;
     KeyInfo *kPtr;
@@ -314,58 +311,66 @@ static int keyboard_iow(int down, unsigned long keysym) {
         keysym -= 0x20;
 
     for (kPtr = keyArray; kPtr->keycode != 0; kPtr++)
-        if (kPtr->keysym == keysym) {
+        if (kPtr->keysym == keysym)
+        {
             code = kPtr->keycode;
-        break;
-    }
+            break;
+        }
 
     if (kPtr->keycode == 0)
         return 0;
 
-    switch (keysym) {
-        case XK_Control_L:
-            mod = down ? mod | 0x01 : mod & ~0x01;
-            break;
-        case XK_Shift_L:
-            mod = down ? mod | 0x02 : mod & ~0x02;
-            break;
-        case XK_Alt_L:
-            mod = down ? mod | 0x04 : mod & ~0x04;
-            break;
-        case XK_Control_R:
-            mod = down ? mod | 0x10 : mod & ~0x10;
-            break;
-        case XK_Shift_R:
-            mod = down ? mod | 0x20 : mod & ~0x20;
-           break;
-        case XK_Alt_R:
-            mod = down ? mod | 0x40 : mod & ~0x40;
-            break;
-        case XK_Super_L:
-            mod = down ? mod | 0x08 : mod & ~0x08;
-            break;
-        case XK_Super_R:
-            mod = down ? mod | 0x80 : mod & ~0x80;
-            break;
-        default:
-            break;
+    switch (keysym)
+    {
+    case XK_Control_L:
+        mod = down ? mod | 0x01 : mod & ~0x01;
+        break;
+    case XK_Shift_L:
+        mod = down ? mod | 0x02 : mod & ~0x02;
+        break;
+    case XK_Alt_L:
+        mod = down ? mod | 0x04 : mod & ~0x04;
+        break;
+    case XK_Control_R:
+        mod = down ? mod | 0x10 : mod & ~0x10;
+        break;
+    case XK_Shift_R:
+        mod = down ? mod | 0x20 : mod & ~0x20;
+        break;
+    case XK_Alt_R:
+        mod = down ? mod | 0x40 : mod & ~0x40;
+        break;
+    case XK_Super_L:
+        mod = down ? mod | 0x08 : mod & ~0x08;
+        break;
+    case XK_Super_R:
+        mod = down ? mod | 0x80 : mod & ~0x80;
+        break;
+    default:
+        break;
     }
 
     keyboard_data[0] = mod;
 
     if (keysym < XK_Shift_L ||
         keysym > XK_Hyper_R ||
-        keysym == XK_Caps_Lock) {
-        if (down) {
+        keysym == XK_Caps_Lock)
+    {
+        if (down)
+        {
             for (i = 2; i < 8; i++)
-                if (keyboard_data[i] == 0) {
+                if (keyboard_data[i] == 0)
+                {
                     keyboard_data[i] = code;
                     last_write = i;
                     break;
                 }
-        } else {
+        }
+        else
+        {
             for (i = 2; i < 8; i++)
-                if (keyboard_data[i] == code) {
+                if (keyboard_data[i] == code)
+                {
                     keyboard_data[i] = 0;
                     break;
                 }
@@ -373,7 +378,7 @@ static int keyboard_iow(int down, unsigned long keysym) {
     }
 
     if (keyboard_fd < 0)
-         keyboard_fd = open(KB_DEV, O_WRONLY | O_NONBLOCK);
+        keyboard_fd = open(KB_DEV, O_WRONLY | O_NONBLOCK);
 
     if (keyboard_fd > -1)
         write(keyboard_fd, &keyboard_data, 8);
@@ -381,7 +386,8 @@ static int keyboard_iow(int down, unsigned long keysym) {
     return 0;
 }
 
-static int mouse_iow(int mask, int x, int y, int w, int h) {
+static int mouse_iow(int mask, int x, int y, int w, int h)
+{
     unsigned short m_x = 0, m_y = 0;
     unsigned char button = 0;
     unsigned char wheel = 0;
@@ -396,14 +402,17 @@ static int mouse_iow(int mask, int x, int y, int w, int h) {
     if (m_y > MOUSE_ABS_RES)
         m_y = MOUSE_ABS_RES;
 
-    if (mask <= 4) {
+    if (mask <= 4)
+    {
         if (mask == 2)
             button = 4;
         else if (mask == 4)
             button = 2;
         else
             button = mask;
-    } else {
+    }
+    else
+    {
         button = 0;
         if (mask == 8)
             wheel = 1;
@@ -422,15 +431,17 @@ static int mouse_iow(int mask, int x, int y, int w, int h) {
         mouse_fd = open(MS_DEV, O_WRONLY | O_NONBLOCK);
 
     if (mouse_fd > -1)
-        write(mouse_fd,&mouse_data, 6);
+        write(mouse_fd, &mouse_data, 6);
 
     return 0;
 }
 
-static int hid_f_write(char *path, const void *ptr, size_t size) {
+static int hid_f_write(char *path, const void *ptr, size_t size)
+{
     FILE *pFile;
     pFile = fopen(path, WO);
-    if (pFile < 0) {
+    if (pFile < 0)
+    {
         printf("failed to open %s \n", path);
         return -1;
     }
@@ -439,13 +450,15 @@ static int hid_f_write(char *path, const void *ptr, size_t size) {
     return 0;
 }
 
-int hid_init(void) {
+int hid_init(void)
+{
     int i = 0;
     int nr_set = ARRAY_SIZE(_hid_init_desc);
-    struct hid_init_desc  *desc  = _hid_init_desc;
+    struct hid_init_desc *desc = _hid_init_desc;
     struct stat st = {0};
 
-    if (stat("/sys/kernel/config/usb_gadget/hid", &st) == -1) {
+    if (stat("/sys/kernel/config/usb_gadget/hid", &st) == -1)
+    {
         mkdir("/sys/kernel/config/usb_gadget/hid", 0755);
         mkdir("/sys/kernel/config/usb_gadget/hid/strings/0x409", 0755);
         mkdir("/sys/kernel/config/usb_gadget/hid/functions/hid.usb0", 0755);
@@ -454,7 +467,8 @@ int hid_init(void) {
         mkdir("/sys/kernel/config/usb_gadget/hid/configs/c.1/strings/0x409", 0755);
     }
 
-    for(i = 0; i < nr_set; i++) {
+    for (i = 0; i < nr_set; i++)
+    {
         hid_f_write(desc->path, desc->ptr, desc->size);
         desc++;
     }
@@ -475,7 +489,8 @@ int hid_init(void) {
     return 0;
 }
 
-void hid_close(void) {
+void hid_close(void)
+{
     close(mouse_fd);
     mouse_fd = -1;
 
@@ -483,11 +498,13 @@ void hid_close(void) {
     keyboard_fd = -1;
 }
 
-void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client) {
+void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client)
+{
     static rfbKeySym last_keysym = 0L;
     static int release_key = 0;
 
-    if (keysym <= 0) {
+    if (keysym <= 0)
+    {
         rfbLog("keyboard: skipping 0x0 keysym\n");
         return;
     }
@@ -495,7 +512,8 @@ void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client) {
     if (!down)
         release_key = 1;
 
-    if (down) {
+    if (down)
+    {
         int skip = 0;
         if ((release_key && last_keysym == keysym) ||
             last_keysym != keysym)
@@ -505,7 +523,8 @@ void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client) {
 
         release_key = 0;
 
-        if (skip) {
+        if (skip)
+        {
             last_keysym = keysym;
             return;
         }
@@ -514,7 +533,8 @@ void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client) {
     last_keysym = keysym;
 }
 
-void pointer_event(int mask, int x, int y, rfbClientPtr client) {
+void pointer_event(int mask, int x, int y, rfbClientPtr client)
+{
     struct nu_cl *nucl = (struct nu_cl *)client->clientData;
     struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
 
