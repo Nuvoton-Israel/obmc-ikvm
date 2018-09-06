@@ -51,7 +51,9 @@ struct ece_ioctl_cmd
 #define ECE_IOCGETED _IOR(ECE_IOC_MAGIC, 1, struct ece_ioctl_cmd)
 #define ECE_IOCSETFB _IOW(ECE_IOC_MAGIC, 2, struct ece_ioctl_cmd)
 #define ECE_IOCSETLP _IOW(ECE_IOC_MAGIC, 3, struct ece_ioctl_cmd)
-#define ECE_IOC_MAXNR 3
+#define ECE_IOCGET_OFFSET _IOR(ECE_IOC_MAGIC, 4, unsigned int)
+#define ECE_IOCCLEAR_OFFSET _IO(ECE_IOC_MAGIC, 5)
+#define ECE_IOC_MAXNR 5
 
 struct vcd_info
 {
@@ -107,6 +109,8 @@ struct nu_rfb
     int refresh_cnt;
     int id;
     int fb_req;
+    int nRects;
+    int frame_size;
 };
 
 struct nu_cl
