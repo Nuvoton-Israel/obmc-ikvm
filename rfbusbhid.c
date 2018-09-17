@@ -26,7 +26,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "rfbnpcm750.h"
-#include "usb_hid.h"
+#include "rfbusbhid.h"
 
 #define IDVENDOR "/sys/kernel/config/usb_gadget/hid/idVendor"
 #define IDPRODUCT "/sys/kernel/config/usb_gadget/hid/idProduct"

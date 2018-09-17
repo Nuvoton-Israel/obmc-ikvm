@@ -1,16 +1,27 @@
-/**
- * USB HID Keyboard scan codes as per USB spec 1.11
- * plus some additional codes
+/*
+ * usb_hid.h
  *
- * Created by MightyPork, 2016
- * Public domain
+ * Copyright (C) 2018 NUVOTON
  *
- * Adapted from:
- * https://source.android.com/devices/input/keyboard-devices.html
+ * KW Liu <kwliu@nuvoton.com>
+ *
+ *  This is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This software is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this software; If not, see <http://www.gnu.org/licenses/>
  */
 
-#ifndef USB_HID_KEYS
-#define USB_HID_KEYS
+#include <rfb/rfb.h>
+#include <rfb/keysym.h>
+#include <rfb/rfbproto.h>
 
 /**
  * Modifier masks - used for the first byte in the HID report.
@@ -284,4 +295,50 @@
 #define KEY_MEDIA_REFRESH 0xfa
 #define KEY_MEDIA_CALC 0xfb
 
-#endif // USB_HID_KEYS
+#define WO "w"
+#define RO "r"
+#define RW "rw"
+
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+#define DESC(_path, _p, _s) \
+    {                       \
+        .path = (_path),    \
+        .ptr = (_p),        \
+        .size = (_s),       \
+    }
+
+struct hid_init_desc
+{
+    char *path;
+    const void *ptr;
+    int size;
+};
+
+typedef struct
+{
+    int keycode;          /* Macintosh keycode. */
+    unsigned long keysym; /* X windows keysym. */
+} KeyInfo;
+
+typedef enum
+{
+    USAGE_PAGE = 0x05,
+    USAGE = 0x09,
+    COLLECTION = 0xA1,
+    USAGE_MIN = 0x19,
+    USAGE_MAX = 0x29,
+    LOGICAL_MIN = 0x15,
+    LOGICAL_MAX = 0x25,
+    REPORT_COUNT = 0x95,
+    REPORT_SIZE = 0x75,
+    INPUT = 0x81,
+    OUTPUT = 0x91,
+    END_COLLECTION = 0xC0,
+    LAST_ITEM = 0xFF
+} HID_report_items_t;
+
+int hid_init(void);
+void hid_close(void);
+void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client);
+void pointer_event(int mask, int x, int y, rfbClientPtr client);

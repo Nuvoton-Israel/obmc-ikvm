@@ -29,6 +29,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
 #include <rfb/rfbconfig.h>
 
 #define RAWFB_MMAP 1
@@ -105,12 +106,13 @@ struct nu_rfb
     int res_changed;
     int last_mode;
     int cl_cnt;
-    char incremental;
     int refresh_cnt;
     int id;
-    int fb_req;
     int nRects;
     int frame_size;
+    int dumpfps;
+    int fps_cnt;
+    int fps_avg;
 };
 
 struct nu_cl

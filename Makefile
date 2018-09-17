@@ -1,5 +1,5 @@
 all:
-	$(CC) obmc-ikvm.c rfbnpcm750.c usb_hid.c -o obmc-ikvm -lvncserver
+	$(CC) obmc-ikvm.c rfbnpcm750.c rfbusbhid.c -o obmc-ikvm -lvncserver
 
 .PHONY: clean
 clean:

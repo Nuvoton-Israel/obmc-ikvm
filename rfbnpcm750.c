@@ -23,6 +23,30 @@
 
 struct nu_rfb *nurfb_g;
 
+struct timespec timediff(struct timespec *start, struct timespec *end) {
+    struct timespec temp;
+
+	if (end->tv_nsec < start->tv_nsec) {
+		long long int nsec =
+			((start->tv_nsec - end->tv_nsec) / 1000000000ULL) + 1;
+
+		start->tv_nsec -= 1000000000ULL * nsec;
+		start->tv_sec += nsec;
+	}
+
+	if (end->tv_nsec - start->tv_nsec > 1000000000ULL) {
+		long long int nsec = (end->tv_nsec - start->tv_nsec) / 1000000000ULL;
+
+		start->tv_nsec += 1000000000ULL * nsec;
+		start->tv_sec -= nsec;
+	}
+
+    temp.tv_sec = end->tv_sec - start->tv_sec;
+    temp.tv_nsec = end->tv_nsec - start->tv_nsec;
+
+    return temp;
+}
+
 rfbBool
 rfbNuSendUpdateBuf(rfbClientPtr cl, char *buf, int len)
 {
@@ -333,12 +357,16 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	{
 		if (nucl->id == 1)
 		{
-			usleep(1000 * 600);
+			usleep(1000 * 500);
 			rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME);
 			rfbNuInitVCD(nurfb, 0);
 			rfbNuNewFramebuffer(cl->screen,
 								nurfb->raw_fb_addr, nurfb->vcd_info.hdisp,
 								nurfb->vcd_info.vdisp, 5, 1, 2);
+			if (nurfb->dumpfps) {
+				nurfb->fps_cnt = 0;
+				nurfb->fps_avg = 0;
+			}
 		}
 
 		LOCK(cl->updateMutex);
@@ -352,7 +380,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	if (nurfb->refresh_cnt)
 		nurfb->refresh_cnt--;
 
-	if (!cl->incremental || nurfb->refresh_cnt > 0)
+	if (nurfb->refresh_cnt > 0)
 	{
 		if (nucl->id == 1)
 			rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME);
@@ -468,7 +496,7 @@ static int rfbNuGetDiffTable(rfbClientRec *cl, struct vcd_diff *diff, int i)
 	}
 	else
 	{
-		if (!nurfb->incremental || nurfb->refresh_cnt > 0)
+		if (nurfb->refresh_cnt > 0)
 		{
 			diff->x = 0;
 			diff->y = 0;
@@ -507,7 +535,7 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 }
 
 static rfbBool
-rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
+rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 {
 	rfbFramebufferUpdateMsg *fu = (rfbFramebufferUpdateMsg *)cl->updateBuf;
 	rfbBool sendCursorShape = FALSE;
@@ -519,6 +547,9 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
 	rfbBool result = TRUE;
 	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
 	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct timespec diff;
+	struct timespec end;
+	struct timespec start;
 
 	if (!rfbNuGetUpdate(cl))
 		return result;
@@ -540,48 +571,8 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
 	if (nurfb->fake_fb)
 		return result;
 
-	if (cl->enableCursorShapeUpdates)
-	{
-		if (cl->cursorWasChanged && cl->readyForSetColourMapEntries)
-			sendCursorShape = TRUE;
-	}
-
-	if (cl->enableCursorPosUpdates && cl->cursorWasMoved)
-		sendCursorPos = TRUE;
-
-	if ((cl->enableKeyboardLedState) && (cl->screen->getKeyboardLedStateHook != NULL))
-	{
-		int x;
-
-		x = cl->screen->getKeyboardLedStateHook(cl->screen);
-		if (x != cl->lastKeyboardLedState)
-		{
-			sendKeyboardLedState = TRUE;
-			cl->lastKeyboardLedState = x;
-		}
-	}
-
-	if (cl->enableSupportedMessages)
-	{
-		sendSupportedMessages = TRUE;
-		cl->enableSupportedMessages = FALSE;
-	}
-
-	if (cl->enableSupportedEncodings)
-	{
-		sendSupportedEncodings = TRUE;
-		cl->enableSupportedEncodings = FALSE;
-	}
-
-	if (cl->enableServerIdentity)
-	{
-		sendServerIdentity = TRUE;
-		cl->enableServerIdentity = FALSE;
-	}
-
-	rfbStatRecordMessageSent(cl, rfbFramebufferUpdate, 0, 0);
-	fu->type = rfbFramebufferUpdate;
-	cl->ublen = sz_rfbFramebufferUpdateMsg;
+	if (nurfb->dumpfps)
+		clock_gettime(CLOCK_MONOTONIC, &start);
 
 	nurfb->nRects = rfbNuGetDiffCnt(cl);
 	if (nurfb->nRects < 0)
@@ -590,9 +581,9 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
 	if (nurfb->nRects == 0)
 		nurfb->nRects = 1;
 
-	fu->nRects = Swap16IfLE((uint16_t)(nurfb->nRects +
-									   !!sendCursorShape + !!sendCursorPos + !!sendKeyboardLedState +
-									   !!sendSupportedMessages + !!sendSupportedEncodings + !!sendServerIdentity));
+	fu->nRects = Swap16IfLE(nurfb->nRects);
+	fu->type = rfbFramebufferUpdate;
+	cl->ublen = sz_rfbFramebufferUpdateMsg;
 
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
@@ -602,99 +593,17 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
 			break;
 
 		cl->scaledScreen->frameBuffer = nurfb->raw_fb_addr;
-		switch (cl->preferredEncoding)
+
+		if (cl->format.bitsPerPixel == 16)
 		{
-		case -1:
-		case rfbEncodingRaw:
-			if (!rfbSendRectEncodingRaw(cl, diff.x, diff.y, diff.w, diff.h))
+			if (!rfbNuSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
 				goto updateFailed;
-			break;
-		case rfbEncodingRRE:
-			if (!rfbSendRectEncodingRRE(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-		case rfbEncodingCoRRE:
-			if (!rfbSendRectEncodingCoRRE(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-		case rfbEncodingHextile:
-			if (cl->format.bitsPerPixel == 16)
-			{
-				if (!rfbNuSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
-					goto updateFailed;
-			}
-			else
-			{
-				if (!rfbSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
-					goto updateFailed;
-			}
-			break;
-		case rfbEncodingUltra:
-			if (!rfbSendRectEncodingUltra(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-#ifdef LIBVNCSERVER_HAVE_LIBZ
-		case rfbEncodingZlib:
-			if (!rfbSendRectEncodingZlib(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-		case rfbEncodingZRLE:
-		case rfbEncodingZYWRLE:
-			if (!rfbSendRectEncodingZRLE(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-#endif
-#if defined(LIBVNCSERVER_HAVE_LIBJPEG) && (defined(LIBVNCSERVER_HAVE_LIBZ) || defined(LIBVNCSERVER_HAVE_LIBPNG))
-		case rfbEncodingTight:
-			if (!rfbSendRectEncodingTight(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-#ifdef LIBVNCSERVER_HAVE_LIBPNG
-		case rfbEncodingTightPng:
-			if (!rfbSendRectEncodingTightPng(cl, diff.x, diff.y, diff.w, diff.h))
-				goto updateFailed;
-			break;
-#endif
-#endif
 		}
-	}
-
-	if (sendCursorShape)
-	{
-		cl->cursorWasChanged = FALSE;
-		if (!rfbSendCursorShape(cl))
-			goto updateFailed;
-	}
-
-	if (sendCursorPos)
-	{
-		cl->cursorWasMoved = FALSE;
-		if (!rfbSendCursorPos(cl))
-			goto updateFailed;
-	}
-
-	if (sendKeyboardLedState)
-	{
-		if (!rfbSendKeyboardLedState(cl))
-			goto updateFailed;
-	}
-
-	if (sendSupportedMessages)
-	{
-		if (!rfbSendSupportedMessages(cl))
-			goto updateFailed;
-	}
-
-	if (sendSupportedEncodings)
-	{
-		if (!rfbSendSupportedEncodings(cl))
-			goto updateFailed;
-	}
-
-	if (sendServerIdentity)
-	{
-		if (!rfbSendServerIdentity(cl))
-			goto updateFailed;
+		else
+		{
+			if (!rfbSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
+				goto updateFailed;
+		}
 	}
 
 	if (!rfbSendUpdateBuf(cl))
@@ -703,9 +612,26 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl, sraRegionPtr givenUpdateRegion)
 		result = FALSE;
 	}
 
-	LOCK(cl->updateMutex);
-	nurfb->fb_req = 0;
-	UNLOCK(cl->updateMutex);
+	if (nurfb->dumpfps)
+	{
+		clock_gettime(CLOCK_MONOTONIC, &end);
+		struct timespec temp = timediff(&start, &end);
+		double time_used = (temp.tv_sec * 1000) + (double)(temp.tv_nsec / 1000000.0);
+		int fps = 1000/time_used;
+
+		if (fps > 60)
+			fps = 60;
+
+		nurfb->fps_avg += fps;
+
+		if (++nurfb->fps_cnt == nurfb->dumpfps) {
+			rfbLog("Frame %d Avg. fps = %d \n", nurfb->dumpfps, nurfb->fps_avg/nurfb->dumpfps);
+			nurfb->fps_cnt = 0;
+			nurfb->fps_avg = 0;
+        }
+
+	}
+
 	return result;
 }
 
@@ -715,13 +641,14 @@ rfbNuUpdateClient(rfbClientPtr cl)
 	struct timeval tv;
 	rfbBool result = FALSE;
 	rfbScreenInfoPtr screen = cl->screen;
+	rfbStatList *ptr = rfbStatLookupMessage(cl, rfbFramebufferUpdateRequest);
 
-	if (cl->sock >= 0 && !cl->onHold && cl->fb_req)
+	if (cl->sock >= 0 && !cl->onHold && (ptr->rcvdCount > 0))
 	{
 		result = TRUE;
 		if (screen->deferUpdateTime == 0)
 		{
-			rfbNuSendFramebufferUpdate(cl, cl->modifiedRegion);
+			rfbNuSendFramebufferUpdate(cl);
 		}
 		else if (cl->startDeferring.tv_usec == 0)
 		{
@@ -736,7 +663,7 @@ rfbNuUpdateClient(rfbClientPtr cl)
 				|| ((tv.tv_sec - cl->startDeferring.tv_sec) * 1000 + (tv.tv_usec - cl->startDeferring.tv_usec) / 1000) > screen->deferUpdateTime)
 			{
 				cl->startDeferring.tv_usec = 0;
-				rfbNuSendFramebufferUpdate(cl, cl->modifiedRegion);
+				rfbNuSendFramebufferUpdate(cl);
 			}
 		}
 	}
