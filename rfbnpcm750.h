@@ -134,6 +134,10 @@ struct nu_cl
 #define CAPTURE_TWO_FRAMES 1
 #define COMPARE 2
 
+#define BitsPerSample 5
+#define SamplesPerPixel 1
+#define BytesPerPixel 2
+
 struct nu_rfb *rfbInitNuRfb(void);
 void rfbClearNuRfb(struct nu_rfb *nurfb);
 void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
