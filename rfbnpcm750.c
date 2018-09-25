@@ -103,7 +103,9 @@ void rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char *framebuffer,
 
 	rfbNuInitRfbFormat(screen);
 
-	screen->frameBuffer = framebuffer;
+	free(screen->frameBuffer);
+
+	screen->frameBuffer = malloc(width * height * 2);//framebuffer;
 
 	/* Adjust pointer position if necessary */
 
@@ -323,7 +325,9 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 
 	if (!nurfb->fake_fb)
 	{
-		nurfb->raw_fb_addr = mmap(0, nurfb->frame_size, PROT_READ, MAP_SHARED,
+
+		nurfb->raw_fb_mmap = vcd_info->line_pitch * vcd_info->vdisp;
+		nurfb->raw_fb_addr = mmap(0, nurfb->raw_fb_mmap, PROT_READ, MAP_SHARED,
 								  nurfb->raw_fb_fd, 0);
 		if (!nurfb->raw_fb_addr)
 		{
@@ -332,7 +336,6 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		}
 		else
 		{
-			nurfb->raw_fb_mmap = nurfb->frame_size;
 			rfbLog("   w: %d h: %d b: %d addr: %p sz: %d\n", vcd_info->hdisp, vcd_info->vdisp,
 				   16, nurfb->raw_fb_addr, nurfb->frame_size);
 		}
@@ -357,12 +360,11 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	{
 		if (nucl->id == 1)
 		{
-			usleep(1000 * 500);
 			rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME);
 			rfbNuInitVCD(nurfb, 0);
 			rfbNuNewFramebuffer(cl->screen,
 								nurfb->raw_fb_addr, nurfb->vcd_info.hdisp,
-								nurfb->vcd_info.vdisp, 5, 1, 2);
+								nurfb->vcd_info.vdisp, BitsPerSample, SamplesPerPixel, BytesPerPixel);
 			if (nurfb->dumpfps) {
 				nurfb->fps_cnt = 0;
 				nurfb->fps_avg = 0;
@@ -585,14 +587,24 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	fu->type = rfbFramebufferUpdate;
 	cl->ublen = sz_rfbFramebufferUpdateMsg;
 
+
+	if (cl->format.bitsPerPixel != 16)
+		for (int i = 0 ; i < nurfb->vcd_info.vdisp; i++) {
+			unsigned int hbytes = nurfb->vcd_info.hdisp * 2;
+			unsigned int dest_of = i * hbytes;
+			unsigned int src_of = i * nurfb->vcd_info.line_pitch;
+			memcpy(
+				cl->scaledScreen->frameBuffer + dest_of,
+				nurfb->raw_fb_addr + src_of,
+				hbytes);
+		}
+
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
 		struct vcd_diff diff;
 
 		if (rfbNuGetDiffTable(cl, &diff, i) < 0)
 			break;
-
-		cl->scaledScreen->frameBuffer = nurfb->raw_fb_addr;
 
 		if (cl->format.bitsPerPixel == 16)
 		{

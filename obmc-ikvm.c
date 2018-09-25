@@ -22,10 +22,6 @@
 #include "rfbnpcm750.h"
 #include "rfbusbhid.h"
 
-#define BitsPerSample 5
-#define SamplesPerPixel 1
-#define BytesPerPixel 2
-
 struct nu_rfb *nurfb = NULL;
 
 static void clientgone(rfbClientPtr cl)
@@ -106,7 +102,7 @@ int main(int argc,char** argv)
     rfbNuInitRfbFormat(rfbScreen);
 
     rfbScreen->desktopName = "obmc iKVM";
-    rfbScreen->frameBuffer = nurfb->raw_fb_addr;
+    rfbScreen->frameBuffer = malloc(nurfb->vcd_info.hdisp * nurfb->vcd_info.vdisp * nurfb->vcd_info.bpp);//nurfb->raw_fb_addr;
     rfbScreen->alwaysShared = TRUE;
     rfbScreen->ptrAddEvent = pointer_event;
     rfbScreen->kbdAddEvent = keyboard;
@@ -115,6 +111,8 @@ int main(int argc,char** argv)
     /* initialize the server */
     rfbInitServer(rfbScreen);
     rfbNuRunEventLoop(rfbScreen, -1, FALSE);
+
+    free(rfbScreen->frameBuffer);
 
     hid_close();
     rfbClearNuRfb(nurfb);
