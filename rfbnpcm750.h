@@ -112,7 +112,6 @@ struct nu_rfb
     int frame_size;
     int dumpfps;
     int fps_cnt;
-    int fps_avg;
 };
 
 struct nu_cl

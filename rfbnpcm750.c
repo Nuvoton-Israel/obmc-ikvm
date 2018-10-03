@@ -22,29 +22,13 @@
 #include "rfbnpcm750.h"
 
 struct nu_rfb *nurfb_g;
+static struct timespec start;
 
-struct timespec timediff(struct timespec *start, struct timespec *end) {
-    struct timespec temp;
+static int timediff(struct timespec *start, struct timespec *end)
+{
+	int diff = end->tv_sec - start->tv_sec;
 
-	if (end->tv_nsec < start->tv_nsec) {
-		long long int nsec =
-			((start->tv_nsec - end->tv_nsec) / 1000000000ULL) + 1;
-
-		start->tv_nsec -= 1000000000ULL * nsec;
-		start->tv_sec += nsec;
-	}
-
-	if (end->tv_nsec - start->tv_nsec > 1000000000ULL) {
-		long long int nsec = (end->tv_nsec - start->tv_nsec) / 1000000000ULL;
-
-		start->tv_nsec += 1000000000ULL * nsec;
-		start->tv_sec -= nsec;
-	}
-
-    temp.tv_sec = end->tv_sec - start->tv_sec;
-    temp.tv_nsec = end->tv_nsec - start->tv_nsec;
-
-    return temp;
+    return diff;
 }
 
 rfbBool
@@ -299,9 +283,9 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 	if (vcd_info->hdisp == 0 || vcd_info->vdisp == 0 || vcd_info->line_pitch == 0)
 	{
 		/* grapich is off, fake a FB */
-		vcd_info->hdisp = 320;
-		vcd_info->vdisp = 240;
-		vcd_info->line_pitch = 1024;
+		vcd_info->hdisp = 1920;
+		vcd_info->vdisp = 1080;
+		vcd_info->line_pitch = 4096;
 		nurfb->fake_fb = malloc(vcd_info->hdisp * vcd_info->vdisp * 2);
 		if (!nurfb->fake_fb)
 			goto error;
@@ -365,10 +349,8 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 			rfbNuNewFramebuffer(cl->screen,
 								nurfb->raw_fb_addr, nurfb->vcd_info.hdisp,
 								nurfb->vcd_info.vdisp, BitsPerSample, SamplesPerPixel, BytesPerPixel);
-			if (nurfb->dumpfps) {
+			if (nurfb->dumpfps)
 				nurfb->fps_cnt = 0;
-				nurfb->fps_avg = 0;
-			}
 		}
 
 		LOCK(cl->updateMutex);
@@ -537,6 +519,29 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 }
 
 static rfbBool
+rfbDumpFPS(rfbClientPtr cl)
+{
+	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
+	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct timespec end;
+
+	if (nurfb->dumpfps)
+	{
+		if (nurfb->fps_cnt == 0) {
+			clock_gettime(CLOCK_MONOTONIC, &start);
+			nurfb->fps_cnt++;
+		} else {
+			clock_gettime(CLOCK_MONOTONIC, &end);
+			if (timediff(&start, &end) >= nurfb->dumpfps) {
+				rfbLog("Avg. FPS = %d \n", nurfb->fps_cnt/nurfb->dumpfps);
+				nurfb->fps_cnt = 0;
+			} else
+				nurfb->fps_cnt++;
+		}
+	}
+}
+
+static rfbBool
 rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 {
 	rfbFramebufferUpdateMsg *fu = (rfbFramebufferUpdateMsg *)cl->updateBuf;
@@ -549,9 +554,6 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	rfbBool result = TRUE;
 	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
 	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
-	struct timespec diff;
-	struct timespec end;
-	struct timespec start;
 
 	if (!rfbNuGetUpdate(cl))
 		return result;
@@ -572,9 +574,6 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 
 	if (nurfb->fake_fb)
 		return result;
-
-	if (nurfb->dumpfps)
-		clock_gettime(CLOCK_MONOTONIC, &start);
 
 	nurfb->nRects = rfbNuGetDiffCnt(cl);
 	if (nurfb->nRects < 0)
@@ -624,26 +623,6 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 		result = FALSE;
 	}
 
-	if (nurfb->dumpfps)
-	{
-		clock_gettime(CLOCK_MONOTONIC, &end);
-		struct timespec temp = timediff(&start, &end);
-		double time_used = (temp.tv_sec * 1000) + (double)(temp.tv_nsec / 1000000.0);
-		int fps = 1000/time_used;
-
-		if (fps > 60)
-			fps = 60;
-
-		nurfb->fps_avg += fps;
-
-		if (++nurfb->fps_cnt == nurfb->dumpfps) {
-			rfbLog("Frame %d Avg. fps = %d \n", nurfb->dumpfps, nurfb->fps_avg/nurfb->dumpfps);
-			nurfb->fps_cnt = 0;
-			nurfb->fps_avg = 0;
-        }
-
-	}
-
 	return result;
 }
 
@@ -661,6 +640,7 @@ rfbNuUpdateClient(rfbClientPtr cl)
 		if (screen->deferUpdateTime == 0)
 		{
 			rfbNuSendFramebufferUpdate(cl);
+			rfbDumpFPS(cl);
 		}
 		else if (cl->startDeferring.tv_usec == 0)
 		{
@@ -676,6 +656,7 @@ rfbNuUpdateClient(rfbClientPtr cl)
 			{
 				cl->startDeferring.tv_usec = 0;
 				rfbNuSendFramebufferUpdate(cl);
+				rfbDumpFPS(cl);
 			}
 		}
 	}
