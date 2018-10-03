@@ -53,16 +53,16 @@ void usage()
 {
 	fprintf(stderr, "OpenBMC IKVM daemon\n");
 	fprintf(stderr, "Usage: obmc-ikvm [options]\n");
-	fprintf(stderr, "-f dump frame rate          dump frame rate\n");
+	fprintf(stderr, "-f dump fps per seconds\n");
 	rfbUsage();
 }
 
 int main(int argc,char** argv)
 {
-    int ret = 0, dumpfps = 0, option;
+    int ret = 0, dump_fps = 0, option;
     const char *opts = "h:f:";
     struct option lopts[] = {
-        { "frame_rate", 1, 0, 'f' },
+        { "dump_fps", 1, 0, 'f' },
         { "help", 0, 0, 'h' },
         { 0, 0, 0, 0 }
     };
@@ -70,16 +70,13 @@ int main(int argc,char** argv)
     while ((option = getopt_long(argc, argv, opts, lopts, NULL)) != -1) {
         switch (option) {
         case 'f':
-        {
-            dumpfps = (int)strtol(optarg, NULL, 0);
-            if (dumpfps == 0)
-                dumpfps = 60;
+            dump_fps = (int)strtol(optarg, NULL, 0);
+            if (dump_fps < 0 || dump_fps > 60)
+                dump_fps = 30;
             break;
-        }
         case 'h':
             usage();
             goto done;
-            break;
         }
     }
 
@@ -87,7 +84,7 @@ int main(int argc,char** argv)
     if (!nurfb)
         return 0;
 
-    nurfb->dumpfps = dumpfps;
+    nurfb->dumpfps = dump_fps;
 
     ret = hid_init();
     if (ret)
