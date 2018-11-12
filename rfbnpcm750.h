@@ -81,7 +81,7 @@ struct vcd_info
     int b_shift;
 };
 
-struct vcd_diff
+struct rect
 {
     unsigned int x;
     unsigned int y;
@@ -92,7 +92,7 @@ struct vcd_diff
 struct nu_rfb
 {
     struct vcd_info vcd_info;
-    struct vcd_diff *diff_table;
+    struct rect *rect_table;
     char *fake_fb;
     char *raw_fb_addr;
     char *raw_hextile_addr;
@@ -102,7 +102,7 @@ struct nu_rfb
     int hextile_fd;
     unsigned int vcd_fb;
     unsigned int line_pitch;
-    unsigned int diff_cnt;
+    unsigned int rect_cnt;
     int res_changed;
     int last_mode;
     int cl_cnt;
@@ -112,6 +112,7 @@ struct nu_rfb
     int frame_size;
     int dumpfps;
     int fps_cnt;
+    unsigned char hsync_mode;
 };
 
 struct nu_cl
@@ -120,14 +121,14 @@ struct nu_cl
     struct nu_rfb *nurfb;
 };
 
-#define VCD_IOC_MAGIC 'v'
-#define VCD_IOCGETINFO _IOR(VCD_IOC_MAGIC, 1, struct vcd_info)
-#define VCD_IOCSENDCMD _IOW(VCD_IOC_MAGIC, 2, int)
-#define VCD_IOCCHKRES _IOR(VCD_IOC_MAGIC, 3, int)
-#define VCD_IOCGETDIFF _IOR(VCD_IOC_MAGIC, 4, struct vcd_diff)
-#define VCD_IOCDIFFCNT _IOR(VCD_IOC_MAGIC, 5, int)
-#define VCD_IOCCHKDRES _IOW(VCD_IOC_MAGIC, 6, int)
-#define VCD_IOC_MAXNR 6
+#define VCD_IOC_MAGIC     'v'
+#define VCD_IOCGETINFO	_IOR(VCD_IOC_MAGIC,  1, struct vcd_info)
+#define VCD_IOCSENDCMD	_IOW(VCD_IOC_MAGIC,  2, int)
+#define VCD_IOCCHKRES	_IOR(VCD_IOC_MAGIC,  3, int)
+#define VCD_IOCGETDIFF	_IOR(VCD_IOC_MAGIC,  4, struct rect)
+#define VCD_IOCDIFFCNT	_IOR(VCD_IOC_MAGIC,  5, int)
+#define VCD_IOCDEMODE	_IOR(VCD_IOC_MAGIC,  6, unsigned char)
+#define VCD_IOC_MAXNR     6
 
 #define CAPTURE_FRAME 0
 #define CAPTURE_TWO_FRAMES 1
@@ -137,7 +138,7 @@ struct nu_cl
 #define SamplesPerPixel 1
 #define BytesPerPixel 2
 
-struct nu_rfb *rfbInitNuRfb(void);
+struct nu_rfb *rfbInitNuRfb(int hsync_mode);
 void rfbClearNuRfb(struct nu_rfb *nurfb);
 void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackground);
