@@ -121,7 +121,7 @@ static int rfbNuGetVCDInfo(struct nu_rfb *nurfb, struct vcd_info *info)
 {
 	if (ioctl(nurfb->raw_fb_fd, VCD_IOCGETINFO, info) < 0)
 	{
-		printf("get info failed\n");
+		rfbErr("get info failed\n");
 		return -1;
 	}
 
@@ -131,10 +131,8 @@ static int rfbNuGetVCDInfo(struct nu_rfb *nurfb, struct vcd_info *info)
 static int rfbNuSetVCDCmd(struct nu_rfb *nurfb, int cmd)
 {
 	if (ioctl(nurfb->raw_fb_fd, VCD_IOCSENDCMD, &cmd) < 0)
-	{
-		printf("set cmd failed\n");
 		return -1;
-	}
+
 	return 0;
 }
 
@@ -153,12 +151,22 @@ static int rfbNuChkVCDRes(struct nu_rfb *nurfb, rfbClientRec *cl)
 check:
 	if (ioctl(nurfb->raw_fb_fd, VCD_IOCCHKRES, &nurfb->res_changed) < 0)
 	{
-		printf("VCD_IOCCHKRES failed\n");
+		rfbErr("VCD_IOCCHKRES failed\n");
 		return -1;
 	}
 
 done:
 	return nurfb->res_changed;
+}
+
+static int rfbNuSetVCDMode(struct nu_rfb *nurfb, unsigned char de_mode)
+{
+	if (ioctl(nurfb->raw_fb_fd, VCD_IOCDEMODE, &de_mode) < 0)
+	{
+		rfbErr("set vcd mode failed\n");
+		return -1;
+	}
+	return 0;
 }
 
 static int rfbNuGetDiffCnt(rfbClientRec *cl)
@@ -168,22 +176,22 @@ static int rfbNuGetDiffCnt(rfbClientRec *cl)
 
 	if (nucl->id == 1)
 	{
-		if (ioctl(nurfb->raw_fb_fd, VCD_IOCDIFFCNT, &nurfb->diff_cnt) < 0)
+		if (ioctl(nurfb->raw_fb_fd, VCD_IOCDIFFCNT, &nurfb->rect_cnt) < 0)
 		{
-			printf("get diff cnt failed\n");
+			rfbErr("get rect cnt failed\n");
 			return -1;
 		}
 
-		if (nurfb->diff_table)
+		if (nurfb->rect_table)
 		{
-			free(nurfb->diff_table);
-			nurfb->diff_table = NULL;
+			free(nurfb->rect_table);
+			nurfb->rect_table = NULL;
 		}
 
-		nurfb->diff_table = (struct vcd_diff *)malloc(sizeof(struct vcd_diff) * (nurfb->diff_cnt + 1));
+		nurfb->rect_table = (struct rect *)malloc(sizeof(struct rect) * (nurfb->rect_cnt + 1));
 	}
 
-	return nurfb->diff_cnt;
+	return nurfb->rect_cnt;
 }
 
 rfbBool
@@ -252,10 +260,10 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 			rfbLog("failed to open /dev/vcd\n");
 			goto error;
 		}
-	}
 
-	if (rfbNuChkVCDRes(nurfb, NULL) < 0)
-		goto error;
+		if (rfbNuSetVCDMode(nurfb, !nurfb->hsync_mode) < 0)
+			goto error;
+	}
 
 	if (rfbNuGetVCDInfo(nurfb, vcd_info) < 0)
 		goto error;
@@ -344,7 +352,6 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	{
 		if (nucl->id == 1)
 		{
-			rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME);
 			rfbNuInitVCD(nurfb, 0);
 			rfbNuNewFramebuffer(cl->screen,
 								nurfb->raw_fb_addr, nurfb->vcd_info.hdisp,
@@ -358,6 +365,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 		cl->newFBSizePending = 1;
 		UNLOCK(cl->updateMutex);
 		nurfb->refresh_cnt = 30;
+
 		return 1;
 	}
 
@@ -366,14 +374,18 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 
 	if (nurfb->refresh_cnt > 0)
 	{
-		if (nucl->id == 1)
-			rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME);
+		if (nucl->id == 1) {
+			if (rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME) < 0)
+				return -1;
+		}
 		return 1;
 	}
 	else
 	{
-		if (nucl->id == 1)
-			rfbNuSetVCDCmd(nurfb, COMPARE);
+		if (nucl->id == 1) {
+			if (rfbNuSetVCDCmd(nurfb, COMPARE) < 0)
+				return -1;
+		}
 		return rfbNuGetDiffCnt(cl);
 	}
 }
@@ -410,7 +422,7 @@ retry:
 	rfbLog("frame size %d map size %d \n",  nurfb->frame_size,  nurfb->raw_hextile_mmap);
 #endif
 
-	if (((cmd.gap_len + offset + cmd.len) >= nurfb->frame_size) || (cmd.len <= 1))
+	if (((cmd.gap_len + offset + cmd.len) >= nurfb->raw_hextile_mmap) || (cmd.len <= 1))
 	{
 		rfbNuClearHextieDataOffset(nurfb);
 		goto retry;
@@ -460,39 +472,39 @@ retry:
 	return TRUE;
 }
 
-static int rfbNuGetDiffTable(rfbClientRec *cl, struct vcd_diff *diff, int i)
+static int rfbNuGetDiffTable(rfbClientRec *cl, struct rect *rect, int i)
 {
 	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
 	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
-	struct vcd_diff *diff_table = nurfb->diff_table;
+	struct rect *rect_table = nurfb->rect_table;
 
 	if (nucl->id == 1)
 	{
-		if (ioctl(nurfb->raw_fb_fd, VCD_IOCGETDIFF, diff) < 0)
+		if (ioctl(nurfb->raw_fb_fd, VCD_IOCGETDIFF, rect) < 0)
 		{
-			printf("get diff table failed\n");
+			rfbErr("get rect table failed\n");
 			return -1;
 		}
-		diff_table[i].x = diff->x;
-		diff_table[i].y = diff->y;
-		diff_table[i].w = diff->w;
-		diff_table[i].h = diff->h;
+		rect_table[i].x = rect->x;
+		rect_table[i].y = rect->y;
+		rect_table[i].w = rect->w;
+		rect_table[i].h = rect->h;
 	}
 	else
 	{
 		if (nurfb->refresh_cnt > 0)
 		{
-			diff->x = 0;
-			diff->y = 0;
-			diff->w = cl->screen->width;
-			diff->h = cl->screen->height;
+			rect->x = 0;
+			rect->y = 0;
+			rect->w = cl->screen->width;
+			rect->h = cl->screen->height;
 		}
 		else
 		{
-			diff->x = diff_table[i].x;
-			diff->y = diff_table[i].y;
-			diff->w = diff_table[i].w;
-			diff->h = diff_table[i].h;
+			rect->x = rect_table[i].x;
+			rect->y = rect_table[i].y;
+			rect->w = rect_table[i].w;
+			rect->h = rect_table[i].h;
 		}
 	}
 	return 0;
@@ -555,7 +567,7 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
 	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
 
-	if (!rfbNuGetUpdate(cl))
+	if (rfbNuGetUpdate(cl) <= 0)
 		return result;
 
 	if (cl->useNewFBSize && cl->newFBSizePending)
@@ -600,19 +612,19 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
-		struct vcd_diff diff;
+		struct rect rect;
 
-		if (rfbNuGetDiffTable(cl, &diff, i) < 0)
+		if (rfbNuGetDiffTable(cl, &rect, i) < 0)
 			break;
 
 		if (cl->format.bitsPerPixel == 16)
 		{
-			if (!rfbNuSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
+			if (!rfbNuSendRectEncodingHextile(cl, rect.x, rect.y, rect.w, rect.h))
 				goto updateFailed;
 		}
 		else
 		{
-			if (!rfbSendRectEncodingHextile(cl, diff.x, diff.y, diff.w, diff.h))
+			if (!rfbSendRectEncodingHextile(cl, rect.x, rect.y, rect.w, rect.h))
 				goto updateFailed;
 		}
 	}
@@ -767,7 +779,7 @@ void rfbClearNuRfb(struct nu_rfb *nurfb)
 	nurfb_g = NULL;
 }
 
-struct nu_rfb *rfbInitNuRfb(void)
+struct nu_rfb *rfbInitNuRfb(int hsync_mode)
 {
 	struct nu_rfb *nurfb = NULL;
 
@@ -776,6 +788,8 @@ struct nu_rfb *rfbInitNuRfb(void)
 		return NULL;
 
 	memset(nurfb, 0, sizeof(struct nu_rfb));
+
+	nurfb->hsync_mode = hsync_mode;
 
 	if (rfbNuInitVCD(nurfb, 1) < 0)
 		return NULL;

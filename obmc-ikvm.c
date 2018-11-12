@@ -60,10 +60,12 @@ void usage()
 int main(int argc,char** argv)
 {
     int ret = 0, dump_fps = 0, option;
-    const char *opts = "h:f:";
+    unsigned char hsync_mode = 0;
+    const char *opts = "hsf:";
     struct option lopts[] = {
-        { "dump_fps", 1, 0, 'f' },
         { "help", 0, 0, 'h' },
+        { "hsync mode", 0, 0, 's' },
+        { "dump_fps", 1, 0, 'f' },
         { 0, 0, 0, 0 }
     };
 
@@ -74,13 +76,17 @@ int main(int argc,char** argv)
             if (dump_fps < 0 || dump_fps > 60)
                 dump_fps = 30;
             break;
+        case 's':
+            hsync_mode = 1;
+            break;
         case 'h':
             usage();
             goto done;
+            break;
         }
     }
 
-    nurfb = rfbInitNuRfb();
+    nurfb = rfbInitNuRfb(hsync_mode);
     if (!nurfb)
         return 0;
 
