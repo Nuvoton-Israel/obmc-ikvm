@@ -31,9 +31,13 @@
 #include <unistd.h>
 #include <time.h>
 #include <rfb/rfbconfig.h>
+#include <sys/epoll.h>
+#include <pthread.h>
 
 #define RAWFB_MMAP 1
 #define RAWFB_FILE 2
+
+#define MAXEVENTS 64
 
 struct ece_ioctl_cmd
 {
@@ -142,4 +146,5 @@ struct nu_rfb *rfbInitNuRfb(int hsync_mode);
 void rfbClearNuRfb(struct nu_rfb *nurfb);
 void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackground);
+void *rfbNuResEventThread(void *ptr);
 #endif

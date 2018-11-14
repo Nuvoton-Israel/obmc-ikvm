@@ -24,6 +24,8 @@
 struct nu_rfb *nurfb_g;
 static struct timespec start;
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static int timediff(struct timespec *start, struct timespec *end)
 {
 	int diff = end->tv_sec - start->tv_sec;
@@ -348,7 +350,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
 	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
 
-	if (rfbNuChkVCDRes(nurfb, cl))
+	if (nurfb->res_changed)
 	{
 		if (nucl->id == 1)
 		{
@@ -365,6 +367,11 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 		cl->newFBSizePending = 1;
 		UNLOCK(cl->updateMutex);
 		nurfb->refresh_cnt = 30;
+
+		pthread_mutex_lock(&mutex);
+		nurfb->res_changed = 0;
+		pthread_mutex_unlock(&mutex);
+
 
 		return 1;
 	}
@@ -739,6 +746,48 @@ void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackgrou
 {
 	while (rfbIsActive(screen))
 		rfbNuProcessEvents(screen, usec);
+}
+
+void *rfbNuResEventThread(void *ptr)
+{
+	struct nu_rfb *nurfb = (struct nu_rfb *)ptr;
+	int ret, efd;
+	struct epoll_event event;
+	struct epoll_event *events;
+
+	efd = epoll_create1(0);
+	if (efd == -1) {
+		rfbErr("epoll_create fail \n");
+		return NULL;
+	}
+
+	event.data.fd = nurfb->raw_fb_fd;
+	event.events =  EPOLLIN | EPOLLET | EPOLLPRI;
+	ret = epoll_ctl(efd, EPOLL_CTL_ADD, nurfb->raw_fb_fd, &event);
+	if (ret == -1) {
+		rfbErr("epoll_ctl fail\n");
+		return NULL;
+	}
+
+	/* Buffer where events are returned */
+	events = calloc(MAXEVENTS, sizeof(event));
+
+	while (1) {
+		int n, i;
+
+		n = epoll_wait(efd, events, MAXEVENTS, -1);
+		for (i = 0; i < n; i++) {
+			if (nurfb->raw_fb_fd == events[i].data.fd) {
+				pthread_mutex_lock(&mutex);
+				nurfb->res_changed = 1;
+				pthread_mutex_unlock(&mutex);
+			}
+		}
+	}
+
+	free(events);
+
+	return NULL;
 }
 
 void rfbClearNuRfb(struct nu_rfb *nurfb)

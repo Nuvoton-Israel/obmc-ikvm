@@ -61,6 +61,7 @@ int main(int argc,char** argv)
 {
     int ret = 0, dump_fps = 0, option;
     unsigned char hsync_mode = 0;
+    pthread_t rfb;
     const char *opts = "hsf:";
     struct option lopts[] = {
         { "help", 0, 0, 'h' },
@@ -111,9 +112,13 @@ int main(int argc,char** argv)
     rfbScreen->kbdAddEvent = keyboard;
     rfbScreen->newClientHook = newclient;
 
+    pthread_create(&rfb, NULL, rfbNuResEventThread, nurfb);
+
     /* initialize the server */
     rfbInitServer(rfbScreen);
     rfbNuRunEventLoop(rfbScreen, -1, FALSE);
+
+    pthread_join(rfb, NULL);
 
     free(rfbScreen->frameBuffer);
 
