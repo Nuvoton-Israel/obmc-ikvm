@@ -178,14 +178,10 @@ static int rfbNuSetVCDCmd(struct nu_rfb *nurfb, int cmd)
 
 static int rfbNuChkVCDRes(struct nu_rfb *nurfb, rfbClientRec *cl)
 {
-	struct nu_cl *nucl;
-
 	if (!cl)
 		goto check; /* init state*/
 
-	nucl = (struct nu_cl *)cl->clientData;
-
-	if (nucl->id != 1)
+	if (!nurfb->do_cmd)
 		goto done;
 
 check:
@@ -211,10 +207,9 @@ static int rfbNuSetVCDMode(struct nu_rfb *nurfb, unsigned char de_mode)
 
 static int rfbNuGetDiffCnt(rfbClientRec *cl)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb = (struct nu_rfb*)cl->clientData;
 
-	if (nucl->id == 1)
+	if (nurfb->do_cmd)
 	{
 		if (ioctl(nurfb->raw_fb_fd, VCD_IOCDIFFCNT, &nurfb->rect_cnt) < 0)
 		{
@@ -385,12 +380,11 @@ error:
 
 static int rfbNuGetUpdate(rfbClientRec *cl)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 
 	if (rfbNuChkVCDRes(nurfb, cl))
 	{
-		if (nucl->id == 1)
+		if (nurfb->do_cmd)
 		{
 			rfbNuInitVCD(nurfb, 0);
 			rfbNuNewFramebuffer(cl->screen,
@@ -409,12 +403,12 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 		return 1;
 	}
 
-	if (nurfb->refresh_cnt)
+	if (nurfb->do_cmd && nurfb->refresh_cnt)
 		nurfb->refresh_cnt--;
 
 	if (nurfb->refresh_cnt > 0)
 	{
-		if (nucl->id == 1) {
+		if (nurfb->do_cmd) {
 			if (rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME) < 0)
 				return -1;
 		}
@@ -422,7 +416,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 	}
 	else
 	{
-		if (nucl->id == 1) {
+		if (nurfb->do_cmd) {
 			if (rfbNuSetVCDCmd(nurfb, COMPARE) < 0)
 				return -1;
 		}
@@ -433,8 +427,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 static rfbBool
 rfbNuHextiles16HW(rfbClientPtr cl, int rx, int ry, int rw, int rh)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 	int err = 0;
 	struct ece_ioctl_cmd cmd;
 	char *copy_addr = NULL;
@@ -506,19 +499,15 @@ retry:
 	else
 		rfbNuSendUpdateBuf(cl, copy_addr, cmd.len);
 
-	if ((offset + cmd.len * 2) >= nurfb->frame_size)
-		rfbNuClearHextieDataOffset(nurfb);
-
 	return TRUE;
 }
 
 static int rfbNuGetDiffTable(rfbClientRec *cl, struct rect *rect, int i)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 	struct rect *rect_table = nurfb->rect_table;
 
-	if (nucl->id == 1)
+	if (nurfb->do_cmd)
 	{
 		if (ioctl(nurfb->raw_fb_fd, VCD_IOCGETDIFF, rect) < 0)
 		{
@@ -557,8 +546,7 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 							 int w,
 							 int h)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb  = (struct nu_rfb *)cl->clientData;
 
 	if (cl->ublen > 0)
 		if (!rfbSendUpdateBuf(cl))
@@ -573,8 +561,7 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 static rfbBool
 rfbDumpFPS(rfbClientPtr cl)
 {
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 	struct timespec end;
 
 	if (nurfb->dumpfps)
@@ -604,8 +591,7 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	rfbBool sendSupportedEncodings = FALSE;
 	rfbBool sendServerIdentity = FALSE;
 	rfbBool result = TRUE;
-	struct nu_cl *nucl = (struct nu_cl *)cl->clientData;
-	struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+	struct nu_rfb *nurfb= (struct nu_rfb *)cl->clientData;
 
 	if (rfbNuGetUpdate(cl) <= 0)
 		return result;
@@ -649,6 +635,8 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 				nurfb->raw_fb_addr + src_of,
 				hbytes);
 		}
+
+	rfbNuClearHextieDataOffset(nurfb);
 
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
@@ -747,6 +735,7 @@ rfbNuProcessEvents(rfbScreenInfoPtr screen, long usec)
 	rfbClientIteratorPtr i;
 	rfbClientPtr cl, clPrev;
 	rfbBool result = FALSE;
+	struct nu_rfb *nurfb;
 
 	extern rfbClientIteratorPtr
 	rfbGetClientIteratorWithClosed(rfbScreenInfoPtr rfbScreen);
@@ -759,9 +748,18 @@ rfbNuProcessEvents(rfbScreenInfoPtr screen, long usec)
 
 	i = rfbGetClientIteratorWithClosed(screen);
 	cl = rfbClientIteratorHead(i);
+
+	if (cl) {
+		nurfb = (struct nu_rfb *)cl->clientData;
+		nurfb->do_cmd = TRUE;
+	} else
+		goto release;
+
 	while (cl)
 	{
 		result = rfbNuUpdateClient(cl);
+		nurfb->do_cmd = FALSE;
+
 		clPrev = cl;
 		cl = rfbClientIteratorNext(i);
 		if (clPrev->sock == -1)
@@ -770,6 +768,8 @@ rfbNuProcessEvents(rfbScreenInfoPtr screen, long usec)
 			result = TRUE;
 		}
 	}
+
+release:
 	rfbReleaseClientIterator(i);
 
 	return result;

@@ -115,12 +115,7 @@ struct nu_rfb
     int dumpfps;
     int fps_cnt;
     unsigned char hsync_mode;
-};
-
-struct nu_cl
-{
-    int id;
-    struct nu_rfb *nurfb;
+    unsigned char do_cmd;
 };
 
 #define VCD_IOC_MAGIC     'v'

@@ -535,8 +535,7 @@ void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client)
 
 void pointer_event(int mask, int x, int y, rfbClientPtr client)
 {
-    struct nu_cl *nucl = (struct nu_cl *)client->clientData;
-    struct nu_rfb *nurfb = (struct nu_rfb *)nucl->nurfb;
+    struct nu_rfb *nurfb = (struct nu_rfb *)client->clientData;
 
     mouse_iow(mask, x, y, nurfb->vcd_info.hdisp, nurfb->vcd_info.vdisp);
 }

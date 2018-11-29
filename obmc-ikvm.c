@@ -33,22 +33,14 @@ static void clientgone(rfbClientPtr cl)
         rfbNuResetECE(nurfb);
     }
 
-    free(cl->clientData);
     cl->clientData = NULL;
 }
 
 static enum rfbNewClientAction newclient(rfbClientPtr cl)
 {
-    struct nu_cl *nucl = (struct nu_cl *)malloc(sizeof(*nucl));
-
-    nucl->nurfb = nurfb;
-    nucl->id = ++nurfb->cl_cnt;
-    if (nucl->id > 1)
-        cl->viewOnly = 1;
-
     nurfb->refresh_cnt = 30;
 
-    cl->clientData = nucl;
+    cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;
     cl->preferredEncoding = rfbEncodingHextile;
 
