@@ -54,7 +54,9 @@ struct ece_ioctl_cmd
 #define ECE_IOCSETLP _IOW(ECE_IOC_MAGIC, 3, struct ece_ioctl_cmd)
 #define ECE_IOCGET_OFFSET _IOR(ECE_IOC_MAGIC, 4, unsigned int)
 #define ECE_IOCCLEAR_OFFSET _IO(ECE_IOC_MAGIC, 5)
-#define ECE_IOC_MAXNR 5
+#define ECE_IOCENCADDR_RESET _IO(ECE_IOC_MAGIC, 6)
+#define ECE_RESET _IO(ECE_IOC_MAGIC, 7)
+#define ECE_IOC_MAXNR 7
 
 struct vcd_info
 {
@@ -128,7 +130,8 @@ struct nu_cl
 #define VCD_IOCGETDIFF	_IOR(VCD_IOC_MAGIC,  4, struct rect)
 #define VCD_IOCDIFFCNT	_IOR(VCD_IOC_MAGIC,  5, int)
 #define VCD_IOCDEMODE	_IOR(VCD_IOC_MAGIC,  6, unsigned char)
-#define VCD_IOC_MAXNR     6
+#define VCD_IOCRESET    _IO(VCD_IOC_MAGIC, 7)
+#define VCD_IOC_MAXNR     7
 
 #define CAPTURE_FRAME 0
 #define CAPTURE_TWO_FRAMES 1
@@ -142,4 +145,6 @@ struct nu_rfb *rfbInitNuRfb(int hsync_mode);
 void rfbClearNuRfb(struct nu_rfb *nurfb);
 void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackground);
+rfbBool rfbNuResetVCD(struct nu_rfb *nurfb);
+rfbBool rfbNuResetECE(struct nu_rfb *nurfb);
 #endif

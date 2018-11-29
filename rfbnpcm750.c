@@ -31,6 +31,46 @@ static int timediff(struct timespec *start, struct timespec *end)
     return diff;
 }
 
+rfbBool rfbNuResetVCD(struct nu_rfb *nurfb)
+{
+	int err;
+
+	if ((err = ioctl(nurfb->raw_fb_fd, VCD_IOCRESET)) < 0)
+	{
+		rfbLog("vnc: vcd reset failed:%d\n", err);
+		return FALSE;
+	}
+
+
+	return TRUE;
+}
+
+rfbBool rfbNuResetECE(struct nu_rfb *nurfb)
+{
+	int err;
+
+	if ((err = ioctl(nurfb->hextile_fd, ECE_RESET)) < 0)
+	{
+		rfbLog("vnc: ece reset failed:%d\n", err);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static rfbBool rfbNuResetENCAddr(struct nu_rfb *nurfb)
+{
+	int err;
+
+	if ((err = ioctl(nurfb->hextile_fd, ECE_IOCENCADDR_RESET)) < 0)
+	{
+		rfbLog("vnc: enc addr reset failed:%d\n", err);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 rfbBool
 rfbNuSendUpdateBuf(rfbClientPtr cl, char *buf, int len)
 {

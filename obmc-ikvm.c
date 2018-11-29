@@ -27,6 +27,12 @@ struct nu_rfb *nurfb = NULL;
 static void clientgone(rfbClientPtr cl)
 {
     nurfb->cl_cnt--;
+
+    if (nurfb->cl_cnt == 0) {
+        rfbNuResetVCD(nurfb);
+        rfbNuResetECE(nurfb);
+    }
+
     free(cl->clientData);
     cl->clientData = NULL;
 }
