@@ -81,6 +81,9 @@ struct vcd_info
     int r_shift;
     int g_shift;
     int b_shift;
+    int mode;
+    unsigned int reg;
+    unsigned int reg_val;
 };
 
 struct rect
@@ -126,7 +129,9 @@ struct nu_rfb
 #define VCD_IOCDIFFCNT	_IOR(VCD_IOC_MAGIC,  5, int)
 #define VCD_IOCDEMODE	_IOR(VCD_IOC_MAGIC,  6, unsigned char)
 #define VCD_IOCRESET    _IO(VCD_IOC_MAGIC, 7)
-#define VCD_IOC_MAXNR     7
+#define VCD_GETREG	_IOR(VCD_IOC_MAGIC, 8, struct vcd_info)
+#define VCD_SETREG	_IOW(VCD_IOC_MAGIC, 9, struct vcd_info)
+#define VCD_IOC_MAXNR     9
 
 #define CAPTURE_FRAME 0
 #define CAPTURE_TWO_FRAMES 1
