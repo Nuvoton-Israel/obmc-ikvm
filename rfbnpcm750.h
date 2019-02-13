@@ -35,6 +35,10 @@
 #define RAWFB_MMAP 1
 #define RAWFB_FILE 2
 
+#define FAKE_FB_WIDTH 320
+#define FAKE_FB_HEIGHT 240
+#define FAKE_FB_BPP 2
+
 struct ece_ioctl_cmd
 {
     unsigned int framebuf;
@@ -119,6 +123,8 @@ struct nu_rfb
     int fps_cnt;
     unsigned char hsync_mode;
     unsigned char do_cmd;
+    unsigned int width;
+    unsigned int height;
 };
 
 #define VCD_IOC_MAGIC     'v'
