@@ -413,10 +413,12 @@ static int rfbNuGetVCDInfo(struct nu_rfb *nurfb, struct vcd_info *info)
 	return 0;
 }
 
-static int rfbNuSetVCDCmd(struct nu_rfb *nurfb, int cmd)
+static int rfbNuSetVCDCmd(struct nu_rfb *nurfb, unsigned int cmd)
 {
-	if (ioctl(nurfb->raw_fb_fd, VCD_IOCSENDCMD, &cmd) < 0)
+	if (ioctl(nurfb->raw_fb_fd, VCD_IOCSENDCMD, &cmd) < 0) {
+		rfbErr("vcd status: 0x%x \n", cmd);
 		return -1;
+	}
 
 	return 0;
 }
@@ -440,7 +442,7 @@ done:
 	return nurfb->res_changed;
 }
 
-static int rfbNuSetVCDMode(struct nu_rfb *nurfb, unsigned char de_mode)
+static int rfbNuSetVCDMode(struct nu_rfb *nurfb, int de_mode)
 {
 	if (ioctl(nurfb->raw_fb_fd, VCD_IOCDEMODE, &de_mode) < 0)
 	{
