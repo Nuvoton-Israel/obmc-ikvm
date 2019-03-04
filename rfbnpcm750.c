@@ -904,6 +904,8 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	fu->type = rfbFramebufferUpdate;
 	cl->ublen = sz_rfbFramebufferUpdateMsg;
 
+	if (cl->enableLastRectEncoding)
+		fu->nRects = 0xFFFF;
 
 	if (cl->format.bitsPerPixel != 16)
 		for (int i = 0 ; i < nurfb->vcd_info.vdisp; i++) {
@@ -936,6 +938,9 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 				goto updateFailed;
 		}
 	}
+
+	if (cl->enableLastRectEncoding)
+		rfbSendLastRectMarker(cl);
 
 	if (!rfbSendUpdateBuf(cl))
 	{
