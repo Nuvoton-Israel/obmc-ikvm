@@ -22,10 +22,16 @@
 #include "rfbnpcm750.h"
 #include "rfbusbhid.h"
 
+#define MAX_CL 5
+
 struct nu_rfb *nurfb = NULL;
 
 static void clientgone(rfbClientPtr cl)
 {
+    int index = cl->sock - nurfb->sock_start;
+
+    nurfb->rcvdCount[index] = 0;
+
     nurfb->cl_cnt--;
 
     if (nurfb->cl_cnt == 0) {
@@ -38,7 +44,14 @@ static void clientgone(rfbClientPtr cl)
 
 static enum rfbNewClientAction newclient(rfbClientPtr cl)
 {
-    nurfb->refresh_cnt = 30;
+    if ((nurfb->cl_cnt + 1) > MAX_CL)
+        return RFB_CLIENT_REFUSE;
+
+    nurfb->refresh_cnt = 10;
+    nurfb->cl_cnt++;
+
+    if (nurfb->cl_cnt == 1)
+        nurfb->sock_start = cl->sock;
 
     cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;

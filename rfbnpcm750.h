@@ -125,6 +125,8 @@ struct nu_rfb
     unsigned char do_cmd;
     unsigned int width;
     unsigned int height;
+    char sock_start;
+    unsigned int rcvdCount[10];
 };
 
 #define VCD_IOC_MAGIC     'v'

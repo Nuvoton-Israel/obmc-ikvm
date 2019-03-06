@@ -646,10 +646,9 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 			return 0;
 
 		LOCK(cl->updateMutex);
-		//cl->useNewFBSize = TRUE;
 		cl->newFBSizePending = TRUE;
 		UNLOCK(cl->updateMutex);
-		nurfb->refresh_cnt = 30;
+		nurfb->refresh_cnt = 10;
 		nurfb->width = nurfb->vcd_info.hdisp;
 		nurfb->height = nurfb->vcd_info.vdisp;
 
@@ -699,8 +698,10 @@ retry:
 	cmd.h = rh;
 	if ((err = ioctl(nurfb->hextile_fd, ECE_IOCGETED, &cmd)) < 0)
 	{
-		rfbLog("vnc: get encoding data failed:%d\n", err);
-		return FALSE;
+		rfbErr("vnc: get encoding data failed:%d\n", err);
+		rfbNuClearHextieDataOffset(nurfb);
+		rfbNuResetECE(nurfb);
+		goto retry;
 	}
 
 #if DBG
@@ -891,7 +892,7 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 	}
 
 	if (ret <= 0)
-		return result;
+		return FALSE;
 
 	nurfb->nRects = rfbNuGetDiffCnt(cl);
 	if (nurfb->nRects < 0)
@@ -919,6 +920,7 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 		}
 
 	rfbNuClearHextieDataOffset(nurfb);
+
 
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
@@ -958,14 +960,21 @@ rfbNuUpdateClient(rfbClientPtr cl)
 	rfbBool result = FALSE;
 	rfbScreenInfoPtr screen = cl->screen;
 	rfbStatList *ptr = rfbStatLookupMessage(cl, rfbFramebufferUpdateRequest);
+	struct nu_rfb *nurfb= (struct nu_rfb *)cl->clientData;
+	int index = cl->sock - nurfb->sock_start;
 
 	if (cl->sock >= 0 && !cl->onHold && (ptr->rcvdCount > 0))
 	{
+
 		result = TRUE;
+
 		if (screen->deferUpdateTime == 0)
 		{
-			rfbNuSendFramebufferUpdate(cl);
-			rfbDumpFPS(cl);
+			if (nurfb->rcvdCount[index] != ptr->rcvdCount) {
+				if (rfbNuSendFramebufferUpdate(cl) == TRUE)
+					nurfb->rcvdCount[index]= ptr->rcvdCount;
+				rfbDumpFPS(cl);
+			}
 		}
 		else if (cl->startDeferring.tv_usec == 0)
 		{
@@ -980,9 +989,11 @@ rfbNuUpdateClient(rfbClientPtr cl)
 				|| ((tv.tv_sec - cl->startDeferring.tv_sec) * 1000 + (tv.tv_usec - cl->startDeferring.tv_usec) / 1000) > screen->deferUpdateTime)
 			{
 				cl->startDeferring.tv_usec = 0;
-				rfbNuSendFramebufferUpdate(cl);
-
-				rfbDumpFPS(cl);
+				if (nurfb->rcvdCount[index] != ptr->rcvdCount) {
+					if (rfbNuSendFramebufferUpdate(cl) == TRUE)
+						nurfb->rcvdCount[index] = ptr->rcvdCount;
+					rfbDumpFPS(cl);
+				}
 			}
 		}
 	}
