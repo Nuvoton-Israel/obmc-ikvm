@@ -46,12 +46,12 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
 {
     if ((nurfb->cl_cnt + 1) > MAX_CL)
         return RFB_CLIENT_REFUSE;
-
-    nurfb->refresh_cnt = 10;
     nurfb->cl_cnt++;
 
     if (nurfb->cl_cnt == 1)
         nurfb->sock_start = cl->sock;
+
+     nurfb->refreshCount[cl->sock - nurfb->sock_start] = REFRESHCNT;
 
     cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;

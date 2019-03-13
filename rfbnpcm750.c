@@ -416,7 +416,7 @@ static int rfbNuGetVCDInfo(struct nu_rfb *nurfb, struct vcd_info *info)
 static int rfbNuSetVCDCmd(struct nu_rfb *nurfb, unsigned int cmd)
 {
 	if (ioctl(nurfb->raw_fb_fd, VCD_IOCSENDCMD, &cmd) < 0) {
-		rfbErr("vcd status: 0x%x \n", cmd);
+		//rfbErr("vcd status: 0x%x \n", cmd);
 		return -1;
 	}
 
@@ -627,9 +627,12 @@ error:
 static int rfbNuGetUpdate(rfbClientRec *cl)
 {
 	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
+	int index = cl->sock - nurfb->sock_start;
 
 	if (rfbNuChkVCDRes(nurfb, cl))
 	{
+		int i;
+
 		if (nurfb->do_cmd)
 		{
 			rfbNuInitVCD(nurfb, 0);
@@ -648,17 +651,18 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 		LOCK(cl->updateMutex);
 		cl->newFBSizePending = TRUE;
 		UNLOCK(cl->updateMutex);
-		nurfb->refresh_cnt = 10;
+		for (i = 0 ; i < nurfb->cl_cnt; i++)
+			nurfb->refreshCount[i] = REFRESHCNT;
 		nurfb->width = nurfb->vcd_info.hdisp;
 		nurfb->height = nurfb->vcd_info.vdisp;
 
 		return 1;
 	}
 
-	if (nurfb->do_cmd && nurfb->refresh_cnt)
-		nurfb->refresh_cnt--;
+	if (nurfb->refreshCount[index])
+		nurfb->refreshCount[index]--;
 
-	if (nurfb->refresh_cnt > 0)
+	if (nurfb->refreshCount[index] > 0)
 	{
 		if (nurfb->do_cmd) {
 			if (rfbNuSetVCDCmd(nurfb, CAPTURE_FRAME) < 0)
@@ -761,6 +765,7 @@ static int rfbNuGetDiffTable(rfbClientRec *cl, struct rect *rect, int i)
 {
 	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 	struct rect *rect_table = nurfb->rect_table;
+	int index = cl->sock - nurfb->sock_start;
 
 	if (nurfb->do_cmd)
 	{
@@ -776,7 +781,7 @@ static int rfbNuGetDiffTable(rfbClientRec *cl, struct rect *rect, int i)
 	}
 	else
 	{
-		if (nurfb->refresh_cnt > 0)
+		if (nurfb->refreshCount[index] > 0)
 		{
 			rect->x = 0;
 			rect->y = 0;

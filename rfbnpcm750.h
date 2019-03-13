@@ -39,6 +39,8 @@
 #define FAKE_FB_HEIGHT 240
 #define FAKE_FB_BPP 2
 
+#define REFRESHCNT 10
+
 struct ece_ioctl_cmd
 {
     unsigned int framebuf;
@@ -115,7 +117,6 @@ struct nu_rfb
     int res_changed;
     int last_mode;
     int cl_cnt;
-    int refresh_cnt;
     int id;
     int nRects;
     int frame_size;
@@ -127,6 +128,7 @@ struct nu_rfb
     unsigned int height;
     char sock_start;
     unsigned int rcvdCount[10];
+    unsigned int refreshCount[10]
 };
 
 #define VCD_IOC_MAGIC     'v'
