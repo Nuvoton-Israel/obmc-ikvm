@@ -94,6 +94,8 @@ class Video
         return width;
     }
 
+    unsigned int getClip(unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h);
+    int setCompareMode(bool enable);
     /* @brief Number of bits per component of a pixel */
     static const int bitsPerSample;
     /* @brief Number of bytes of storage for a pixel */

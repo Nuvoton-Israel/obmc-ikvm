@@ -27,11 +27,13 @@ void Manager::run()
         }
         else
         {
+            video.setCompareMode(false);
             video.stop();
         }
 
         if (video.needsResize())
         {
+            video.setCompareMode(false);
             videoDone = false;
             waitServer();
             video.resize();

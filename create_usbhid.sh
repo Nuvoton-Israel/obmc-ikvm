@@ -119,17 +119,6 @@ ln -s functions/hid.0 configs/c.1
 ln -s functions/hid.1 configs/c.1
 
 # Enable gadget
-dev_name="1e6a0000.usb-vhub"
-i=0
-num_ports=5
-base_usb_dir="/sys/bus/platform/devices/${dev_name}/${dev_name}:p"
-while [ $i -lt $num_ports ]; do
-	port=$(($i + 1))
-	i=$port
-	if [ ! -e "${base_usb_dir}${port}/gadget/suspended" ]; then
-		break
-	fi
-done
-echo "${dev_name}:p${port}" > UDC
+echo "f0830000.udc" > UDC
 
 cd "${original_directory}"
