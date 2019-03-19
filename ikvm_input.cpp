@@ -28,8 +28,10 @@ Input::Input(const std::string& kbdPath, const std::string& ptrPath) :
     keyboardFd(-1), pointerFd(-1), keyboardReport{0}, pointerReport{0},
     keyboardPath(kbdPath), pointerPath(ptrPath)
 {
+#if 0
     hidUdcStream.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     hidUdcStream.open(hidUdcPath, std::ios::out | std::ios::app);
+#endif
 }
 
 Input::~Input()
@@ -50,12 +52,12 @@ Input::~Input()
 
 void Input::connect()
 {
+#if 0
     try
     {
         for (const auto& port : fs::directory_iterator(usbVirtualHubPath))
         {
-            if (fs::is_directory(port) && !fs::is_symlink(port) &&
-                !fs::exists(port.path() / "gadget/suspended"))
+            if (fs::is_directory(port) && !fs::is_symlink(port))
             {
                 const std::string portId = port.path().filename();
                 hidUdcStream << portId << std::endl;
@@ -75,7 +77,7 @@ void Input::connect()
                         entry("ERROR=%s", e.what()));
         return;
     }
-
+#endif
     if (!keyboardPath.empty())
     {
         keyboardFd = open(keyboardPath.c_str(),
@@ -119,7 +121,7 @@ void Input::disconnect()
         close(pointerFd);
         pointerFd = -1;
     }
-
+#if 0
     try
     {
         hidUdcStream << "" << std::endl;
@@ -129,6 +131,7 @@ void Input::disconnect()
         log<level::ERR>("Failed to disconnect HID gadget",
                         entry("ERROR=%s", e.what()));
     }
+#endif
 }
 
 void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)

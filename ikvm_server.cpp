@@ -16,7 +16,7 @@ using namespace phosphor::logging;
 using namespace sdbusplus::xyz::openbmc_project::Common::Error;
 
 Server::Server(const Args& args, Input& i, Video& v) :
-    pendingResize(false), frameCounter(0), numClients(0), input(i), video(v)
+    pendingResize(false), frameCounter(0), numClients(0), input(i), video(v), FullframeCounter(5)
 {
     std::string ip("localhost");
     const Args::CommandLine& commandLine = args.getCommandLine();
@@ -37,6 +37,15 @@ Server::Server(const Args& args, Input& i, Video& v) :
     framebuffer.resize(
         video.getHeight() * video.getWidth() * Video::bytesPerPixel, 0);
 
+    format = &server->serverFormat;
+
+    format->redMax = 31;
+    format->greenMax = 63;
+    format->blueMax = 31;
+    format->redShift = 11;
+    format->greenShift = 5;
+    format->blueShift = 0;
+
     server->screenData = this;
     server->desktopName = "OpenBMC IKVM";
     server->frameBuffer = framebuffer.data();
@@ -56,8 +65,6 @@ Server::Server(const Args& args, Input& i, Video& v) :
     server->ptrAddEvent = Input::pointerEvent;
 
     processTime = (1000000 / video.getFrameRate()) - 100;
-
-    calcFrameCRC = args.getCalcFrameCRC();
 }
 
 Server::~Server()
@@ -94,12 +101,13 @@ void Server::run()
 
 void Server::sendFrame()
 {
-    char* data = video.getData();
+    char* data = nullptr;
     rfbClientIteratorPtr it;
     rfbClientPtr cl;
+#if 0
     int64_t frame_crc = -1;
-
-    if (!data || pendingResize)
+#endif
+    if (pendingResize)
     {
         return;
     }
@@ -108,7 +116,10 @@ void Server::sendFrame()
 
     while ((cl = rfbClientIteratorNext(it)))
     {
+        unsigned int x, y, w, h, clipcount;
+
         ClientData* cd = (ClientData*)cl->clientData;
+        Server* server = (Server*)cl->screen->screenData;
         rfbFramebufferUpdateMsg* fu = (rfbFramebufferUpdateMsg*)cl->updateBuf;
 
         if (!cd)
@@ -127,6 +138,17 @@ void Server::sendFrame()
             continue;
         }
 
+        if (!data) {
+            video.getFrame();
+
+            data = video.getData();
+            if (!data)
+            {
+                return;
+            }
+        }
+
+#if 0
         if (calcFrameCRC)
         {
             if (frame_crc == -1)
@@ -145,6 +167,18 @@ void Server::sendFrame()
 
             cd->last_crc = frame_crc;
         }
+#endif
+        if (server->numClients == 1) {
+            if (FullframeCounter > 0)
+                FullframeCounter--;
+
+            if (FullframeCounter == 0)
+                video.setCompareMode(true);
+        }
+
+        clipcount = video.getClip(&x, &y, &w, &h);
+        if (clipcount <= 0)
+            continue;
 
         cd->needUpdate = false;
 
@@ -154,19 +188,25 @@ void Server::sendFrame()
         }
         else
         {
-            fu->nRects = Swap16IfLE(1);
+            fu->nRects = Swap16IfLE(clipcount);
         }
 
         fu->type = rfbFramebufferUpdate;
         cl->ublen = sz_rfbFramebufferUpdateMsg;
         rfbSendUpdateBuf(cl);
 
+        cl->scaledScreen->frameBuffer = data;
+
+        do {
+            rfbSendRectEncodingHextile(cl, x, y, w, h);
+        } while (video.getClip(&x, &y, &w, &h) > 0);
+#if 0
         cl->tightEncoding = rfbEncodingTight;
         rfbSendTightHeader(cl, 0, 0, video.getWidth(), video.getHeight());
 
         cl->updateBuf[cl->ublen++] = (char)(rfbTightJpeg << 4);
         rfbSendCompressedDataTight(cl, data, video.getFrameSize());
-
+#endif
         if (cl->enableLastRectEncoding)
         {
             rfbSendLastRectMarker(cl);
@@ -198,12 +238,15 @@ void Server::clientGone(rfbClientPtr cl)
 
     delete (ClientData*)cl->clientData;
     cl->clientData = nullptr;
-
     if (server->numClients-- == 1)
     {
         server->input.disconnect();
         rfbMarkRectAsModified(server->server, 0, 0, server->video.getWidth(),
                               server->video.getHeight());
+    }
+    else if (server->numClients == 1)
+    {
+        server->FullframeCounter = 5;
     }
 }
 
@@ -215,6 +258,9 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
         new ClientData(server->video.getFrameRate(), &server->input);
     cl->clientGoneHook = clientGone;
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
+    cl->preferredEncoding = rfbEncodingHextile;
+    server->video.setCompareMode(false);
+
     if (!server->numClients++)
     {
         server->input.connect();
@@ -225,6 +271,74 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
     return RFB_CLIENT_ACCEPT;
 }
 
+
+void rfbNuInitRfbFormat(rfbScreenInfoPtr screen)
+{
+    rfbPixelFormat *format = &screen->serverFormat;
+
+    screen->colourMap.count = 0;
+    screen->colourMap.is16 = 0;
+    screen->colourMap.data.bytes = NULL;
+    format->bitsPerPixel = screen->bitsPerPixel;
+    format->depth = screen->depth;
+    format->bigEndian = FALSE;
+    format->trueColour = TRUE;
+    format->redMax = 31;
+    format->greenMax = 63;
+    format->blueMax = 31;
+    format->redShift = 11;
+    format->greenShift = 5;
+    format->blueShift = 0;
+}
+
+void rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char *framebuffer,
+						 int width, int height,
+						 int bitsPerSample, int samplesPerPixel,
+						 int bytesPerPixel)
+{
+	rfbClientIteratorPtr iterator;
+	rfbClientPtr cl;
+
+	/* Update information in the screenInfo structure */
+
+	if (width & 3)
+		rfbErr("WARNING: New width (%d) is not a multiple of 4.\n", width);
+
+	screen->width = width;
+	screen->height = height;
+	screen->bitsPerPixel = screen->depth = 8 * bytesPerPixel;
+	screen->paddedWidthInBytes = width * bytesPerPixel;
+
+	rfbNuInitRfbFormat(screen);
+
+	screen->frameBuffer = framebuffer;
+
+	/* Adjust pointer position if necessary */
+
+	if (screen->cursorX >= width)
+		screen->cursorX = width - 1;
+
+	if (screen->cursorY >= height)
+		screen->cursorY = height - 1;
+
+	/* For each client: */
+	iterator = rfbGetClientIterator(screen);
+	while ((cl = rfbClientIteratorNext(iterator)) != NULL)
+	{
+		/* Mark the screen contents as changed, and schedule sending
+	NewFBSize message if supported by this client. */
+
+		LOCK(cl->updateMutex);
+
+		if (cl->useNewFBSize)
+			cl->newFBSizePending = TRUE;
+
+		TSIGNAL(cl->updateCond);
+		UNLOCK(cl->updateMutex);
+	}
+	rfbReleaseClientIterator(iterator);
+}
+
 void Server::doResize()
 {
     rfbClientIteratorPtr it;
@@ -233,7 +347,7 @@ void Server::doResize()
     framebuffer.resize(
         video.getHeight() * video.getWidth() * Video::bytesPerPixel, 0);
 
-    rfbNewFramebuffer(server, framebuffer.data(), video.getWidth(),
+    rfbNuNewFramebuffer(server, framebuffer.data(), video.getWidth(),
                       video.getHeight(), Video::bitsPerSample,
                       Video::samplesPerPixel, Video::bytesPerPixel);
     rfbMarkRectAsModified(server, 0, 0, video.getWidth(), video.getHeight());
@@ -254,6 +368,8 @@ void Server::doResize()
     }
 
     rfbReleaseClientIterator(it);
+
+    FullframeCounter = 5;
 }
 
 } // namespace ikvm

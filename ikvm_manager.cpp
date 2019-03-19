@@ -22,16 +22,17 @@ void Manager::run()
         if (server.wantsFrame())
         {
             video.start();
-            video.getFrame();
             server.sendFrame();
         }
         else
         {
+            video.setCompareMode(false);
             video.stop();
         }
 
         if (video.needsResize())
         {
+            video.setCompareMode(false);
             videoDone = false;
             waitServer();
             video.resize();

@@ -111,7 +111,7 @@ class Server
 
     /* @brief Performs the resize operation on the framebuffer */
     void doResize();
-
+    int rcvdCount;
     /* @brief Boolean to indicate if a resize operation is on-going */
     bool pendingResize;
     /* @brief Number of frames handled since a client connected */
@@ -128,8 +128,7 @@ class Server
     Video& video;
     /* @brief Default framebuffer storage */
     std::vector<char> framebuffer;
-    /* @brief Identical frames detection */
-    bool calcFrameCRC;
+    rfbPixelFormat *format;
     /* @brief Cursor bitmap width */
     static constexpr int cursorWidth = 20;
     /* @brief Cursor bitmap height */
@@ -176,6 +175,8 @@ class Server
                                          " o    oxxxo         "
                                          "       oxo          "
                                          "        o           ";
+
+    int FullframeCounter;
 };
 
 } // namespace ikvm
