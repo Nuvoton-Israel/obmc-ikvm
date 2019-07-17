@@ -378,7 +378,7 @@ static int keyboard_iow(int down, unsigned long keysym)
     }
 
     if (keyboard_fd < 0)
-        keyboard_fd = open(KB_DEV, O_WRONLY | O_NONBLOCK);
+        keyboard_fd = open(KB_DEV, O_WRONLY);
 
     if (keyboard_fd > -1)
         write(keyboard_fd, &keyboard_data, 8);
@@ -478,7 +478,7 @@ int hid_init(void)
 
     hid_f_write(UDC, USB_DEV_NAME, 16);
 
-    keyboard_fd = open(KB_DEV, O_WRONLY | O_NONBLOCK);
+    keyboard_fd = open(KB_DEV, O_WRONLY);
     if (keyboard_fd < 0)
         printf("can not open %s \n", KB_DEV);
 
