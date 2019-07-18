@@ -587,7 +587,8 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		goto error;
 	}
 
-	nurfb->raw_hextile_mmap = vcd_info->line_pitch * vcd_info->vdisp;
+
+	nurfb->raw_hextile_mmap = vcd_info->hdisp * vcd_info->vdisp * (vcd_info->bpp + 1);
 	nurfb->raw_hextile_addr = mmap(0, nurfb->raw_hextile_mmap, PROT_READ,
 								   MAP_SHARED, nurfb->hextile_fd, 0);
 	if (!nurfb->raw_hextile_addr)
@@ -598,7 +599,6 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 
 	if (!nurfb->fake_fb)
 	{
-
 		nurfb->raw_fb_mmap = vcd_info->line_pitch * vcd_info->vdisp;
 		nurfb->raw_fb_addr = mmap(0, nurfb->raw_fb_mmap, PROT_READ, MAP_SHARED,
 								  nurfb->raw_fb_fd, 0);

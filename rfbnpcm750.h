@@ -39,7 +39,7 @@
 #define FAKE_FB_HEIGHT 240
 #define FAKE_FB_BPP 2
 
-#define REFRESHCNT 10
+#define REFRESHCNT 20
 
 struct ece_ioctl_cmd
 {
