@@ -1133,6 +1133,8 @@ struct nu_rfb *rfbInitNuRfb(int hsync_mode)
 
 	nurfb->hsync_mode = hsync_mode;
 
+    sendWakeupPacket();
+
 	if (rfbNuInitVCD(nurfb, 1) < 0)
 		return NULL;
 

@@ -300,6 +300,36 @@ static struct hid_init_desc _hid_init_desc[] = {
 static unsigned char keyboard_data[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 static int last_write = 2;
 static unsigned char mod = 0;
+static uint8_t KEY_REPORT_LENGTH = 8;
+
+void sendWakeupPacket(void)
+{
+    uint8_t wakeupReport[KEY_REPORT_LENGTH];
+
+    memset(wakeupReport, 0, sizeof(wakeupReport));
+
+    if (keyboard_fd >= 0)
+    {
+        memset(&wakeupReport[0], 0, KEY_REPORT_LENGTH);
+
+        wakeupReport[0] = 0x02; //XK_Shift_L
+
+        if (write(keyboard_fd, wakeupReport, KEY_REPORT_LENGTH) !=
+            KEY_REPORT_LENGTH)
+        {
+            printf("Failed to write keyboard report");
+            return;
+        }
+
+        wakeupReport[0] = 0;
+
+        if (write(keyboard_fd, wakeupReport, KEY_REPORT_LENGTH) !=
+            KEY_REPORT_LENGTH)
+        {
+            printf("Failed to write keyboard report");
+        }
+    }
+}
 
 static int keyboard_iow(int down, unsigned long keysym)
 {

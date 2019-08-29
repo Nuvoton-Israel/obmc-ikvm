@@ -342,3 +342,4 @@ int hid_init(void);
 void hid_close(void);
 void keyboard(rfbBool down, rfbKeySym keysym, rfbClientPtr client);
 void pointer_event(int mask, int x, int y, rfbClientPtr client);
+void sendWakeupPacket(void);

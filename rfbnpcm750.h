@@ -39,7 +39,7 @@
 #define FAKE_FB_HEIGHT 240
 #define FAKE_FB_BPP 2
 
-#define REFRESHCNT 20
+#define REFRESHCNT 5
 
 struct ece_ioctl_cmd
 {
@@ -131,17 +131,17 @@ struct nu_rfb
     unsigned int refreshCount[10]
 };
 
-#define VCD_IOC_MAGIC     'v'
-#define VCD_IOCGETINFO	_IOR(VCD_IOC_MAGIC,  1, struct vcd_info)
-#define VCD_IOCSENDCMD	_IOW(VCD_IOC_MAGIC,  2, unsigned int)
-#define VCD_IOCCHKRES	_IOR(VCD_IOC_MAGIC,  3, int)
-#define VCD_IOCGETDIFF	_IOR(VCD_IOC_MAGIC,  4, struct rect)
-#define VCD_IOCDIFFCNT	_IOR(VCD_IOC_MAGIC,  5, int)
-#define VCD_IOCDEMODE	_IOR(VCD_IOC_MAGIC,  6, int)
-#define VCD_IOCRESET	_IO(VCD_IOC_MAGIC, 7)
-#define VCD_GETREG	_IOR(VCD_IOC_MAGIC, 8, struct vcd_info)
-#define VCD_SETREG	_IOW(VCD_IOC_MAGIC, 9, struct vcd_info)
-#define VCD_IOC_MAXNR     9
+#define VCD_IOC_MAGIC 'v'
+#define VCD_IOCGETINFO _IOR(VCD_IOC_MAGIC, 1, struct vcd_info)
+#define VCD_IOCSENDCMD _IOW(VCD_IOC_MAGIC, 2, unsigned int)
+#define VCD_IOCCHKRES _IOR(VCD_IOC_MAGIC, 3, int)
+#define VCD_IOCGETDIFF _IOR(VCD_IOC_MAGIC, 4, struct rect)
+#define VCD_IOCDIFFCNT _IOR(VCD_IOC_MAGIC, 5, int)
+#define VCD_IOCDEMODE _IOR(VCD_IOC_MAGIC, 6, int)
+#define VCD_IOCRESET _IO(VCD_IOC_MAGIC, 7)
+#define VCD_GETREG _IOR(VCD_IOC_MAGIC, 8, struct vcd_info)
+#define VCD_SETREG _IOW(VCD_IOC_MAGIC, 9, struct vcd_info)
+#define VCD_IOC_MAXNR 9
 
 #define CAPTURE_FRAME 0
 #define CAPTURE_TWO_FRAMES 1

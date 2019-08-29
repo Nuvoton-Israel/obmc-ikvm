@@ -34,7 +34,8 @@ static void clientgone(rfbClientPtr cl)
 
     nurfb->cl_cnt--;
 
-    if (nurfb->cl_cnt == 0) {
+    if (nurfb->cl_cnt == 0)
+    {
         rfbNuResetVCD(nurfb);
         rfbNuResetECE(nurfb);
     }
@@ -46,12 +47,13 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
 {
     if ((nurfb->cl_cnt + 1) > MAX_CL)
         return RFB_CLIENT_REFUSE;
+
     nurfb->cl_cnt++;
 
     if (nurfb->cl_cnt == 1)
         nurfb->sock_start = cl->sock;
 
-     nurfb->refreshCount[cl->sock - nurfb->sock_start] = REFRESHCNT;
+    nurfb->refreshCount[cl->sock - nurfb->sock_start] = REFRESHCNT;
 
     cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;
@@ -62,26 +64,27 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
 
 void usage()
 {
-	fprintf(stderr, "OpenBMC IKVM daemon\n");
-	fprintf(stderr, "Usage: obmc-ikvm [options]\n");
-	fprintf(stderr, "-f dump fps per seconds\n");
-	rfbUsage();
+    fprintf(stderr, "OpenBMC IKVM daemon\n");
+    fprintf(stderr, "Usage: obmc-ikvm [options]\n");
+    fprintf(stderr, "-f dump fps per seconds\n");
+    rfbUsage();
 }
 
-int main(int argc,char** argv)
+int main(int argc, char **argv)
 {
     int ret = 0, dump_fps = 0, option;
     unsigned char hsync_mode = 0;
     const char *opts = "hsf:";
     struct option lopts[] = {
-        { "help", 0, 0, 'h' },
-        { "hsync mode", 0, 0, 's' },
-        { "dump_fps", 1, 0, 'f' },
-        { 0, 0, 0, 0 }
-    };
+        {"help", 0, 0, 'h'},
+        {"hsync mode", 0, 0, 's'},
+        {"dump_fps", 1, 0, 'f'},
+        {0, 0, 0, 0}};
 
-    while ((option = getopt_long(argc, argv, opts, lopts, NULL)) != -1) {
-        switch (option) {
+    while ((option = getopt_long(argc, argv, opts, lopts, NULL)) != -1)
+    {
+        switch (option)
+        {
         case 'f':
             dump_fps = (int)strtol(optarg, NULL, 0);
             if (dump_fps < 0 || dump_fps > 60)
@@ -109,14 +112,14 @@ int main(int argc,char** argv)
 
     rfbScreenInfoPtr rfbScreen =
         rfbGetScreen(&argc, argv, nurfb->vcd_info.hdisp, nurfb->vcd_info.vdisp,
-            BitsPerSample, SamplesPerPixel, BytesPerPixel);
-    if(!rfbScreen)
+                     BitsPerSample, SamplesPerPixel, BytesPerPixel);
+    if (!rfbScreen)
         return 0;
 
     rfbNuInitRfbFormat(rfbScreen);
 
     rfbScreen->desktopName = "obmc iKVM";
-    rfbScreen->frameBuffer = malloc(nurfb->vcd_info.hdisp * nurfb->vcd_info.vdisp * nurfb->vcd_info.bpp);//nurfb->raw_fb_addr;
+    rfbScreen->frameBuffer = malloc(nurfb->vcd_info.hdisp * nurfb->vcd_info.vdisp * nurfb->vcd_info.bpp); //nurfb->raw_fb_addr;
     rfbScreen->alwaysShared = TRUE;
     rfbScreen->ptrAddEvent = pointer_event;
     rfbScreen->kbdAddEvent = keyboard;
@@ -132,5 +135,5 @@ int main(int argc,char** argv)
     rfbClearNuRfb(nurfb);
     rfbScreenCleanup(rfbScreen);
 done:
-    return(0);
+    return (0);
 }
