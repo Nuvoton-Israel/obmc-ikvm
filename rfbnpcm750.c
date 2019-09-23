@@ -924,9 +924,6 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 				hbytes);
 		}
 
-	rfbNuClearHextieDataOffset(nurfb);
-
-
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
 		struct rect rect;
