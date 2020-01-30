@@ -128,7 +128,7 @@ struct nu_rfb
     unsigned int height;
     char sock_start;
     unsigned int rcvdCount[10];
-    unsigned int refreshCount[10]
+    unsigned int refreshCount[10];
 };
 
 #define VCD_IOC_MAGIC 'v'

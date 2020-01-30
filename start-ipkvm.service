@@ -1,0 +1,10 @@
+[Unit]
+Description=OpenBMC ipKVM daemon
+ConditionPathIsMountPoint=/sys/kernel/config
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/obmc-ikvm
+
+[Install]
+WantedBy=multi-user.target
