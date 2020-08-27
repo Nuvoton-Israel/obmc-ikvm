@@ -31,6 +31,10 @@
 #include <unistd.h>
 #include <time.h>
 #include <rfb/rfbconfig.h>
+#ifdef CONFIG_KEYBOARD_EVENT
+#include <sys/epoll.h>
+#include <pthread.h>
+#endif
 
 #define RAWFB_MMAP 1
 #define RAWFB_FILE 2
@@ -40,6 +44,10 @@
 #define FAKE_FB_BPP 2
 
 #define REFRESHCNT 5
+
+#ifdef CONFIG_KEYBOARD_EVENT
+#define MAXEVENTS 64
+#endif
 
 struct ece_ioctl_cmd
 {
@@ -157,4 +165,7 @@ void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackground);
 rfbBool rfbNuResetVCD(struct nu_rfb *nurfb);
 rfbBool rfbNuResetECE(struct nu_rfb *nurfb);
+#ifdef CONFIG_KEYBOARD_EVENT
+void *rfbNuKeyEventThread(void *ptr);
+#endif
 #endif

@@ -75,6 +75,9 @@ int main(int argc, char **argv)
     int ret = 0, dump_fps = 0, option;
     unsigned char hsync_mode = 0;
     const char *opts = "hsf:";
+#ifdef CONFIG_KEYBOARD_EVENT
+    pthread_t rfb;
+#endif
     struct option lopts[] = {
         {"help", 0, 0, 'h'},
         {"hsync mode", 0, 0, 's'},
@@ -127,8 +130,14 @@ int main(int argc, char **argv)
 
     /* initialize the server */
     rfbInitServer(rfbScreen);
+#ifdef CONFIG_KEYBOARD_EVENT
+    pthread_create(&rfb, NULL, rfbNuKeyEventThread, nurfb);
+#endif
     rfbNuRunEventLoop(rfbScreen, -1, FALSE);
 
+#ifdef CONFIG_KEYBOARD_EVENT
+    pthread_join(rfb, NULL);
+#endif
     free(rfbScreen->frameBuffer);
 
     hid_close();

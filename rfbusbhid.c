@@ -102,40 +102,39 @@ static const unsigned char hid_report_mouse[] =
 /* keyboard Report descriptor */
 static const unsigned char hid_report_keyboard[] =
     {
-        USAGE_PAGE, 0x01,
-        USAGE, 0x06,
-        COLLECTION, 0x01,
-        USAGE_PAGE, 0x07,
-        USAGE_MIN, 0xE0,
-        USAGE_MAX, 0xE7,
-        LOGICAL_MIN, 0x00,
-        LOGICAL_MAX, 0x01,
-        REPORT_SIZE, 0x01,
-        REPORT_COUNT, 0x08,
-        INPUT, 0x02,
-        REPORT_COUNT, 0x01,
-        REPORT_SIZE, 0x08,
-        INPUT, 0x01,
-        REPORT_COUNT, 0x05,
-        REPORT_SIZE, 0x01,
-        USAGE_PAGE, 0x08,
-        USAGE_MIN, 0x01,
-        USAGE_MAX, 0x05,
-        OUTPUT, 0x02,
-        REPORT_COUNT, 0x01,
-        REPORT_SIZE, 0x03,
-        OUTPUT, 0x01,
-        USAGE_PAGE, 0x07,
-        REPORT_COUNT, 0x06,
-        REPORT_SIZE, 0x08,
-        LOGICAL_MIN, 0x00,
-        0x26,
-        LAST_ITEM, 0x00,
-        USAGE_MIN, 0x00,
-        0x2A,
-        LAST_ITEM, 0x00,
-        INPUT, 0x00,
-        END_COLLECTION};
+        0x05, 0x01,       // Usage Page (Generic Desktop Control)
+        0x09, 0x06,       // Usage (Keyboard)
+        0xA1, 0x01,       // Collection (Application)
+        0x05, 0x07,       // Usage Page (Keyboard)
+        0x19, 0xE0,       // Usage Minimum (224) (Left Control)
+        0x29, 0xE7,       // Usage Maximum (231) (Right Control)
+        0x15, 0x00,       // Logical Minimum (0)
+        0x25, 0x01,       // Logical Maximum (1)
+        0x75, 0x01,       // Report Size (1)
+        0x95, 0x08,       // Report Count (8)
+        0x81, 0x02,       // Input (Data, Variable, Absolute, Bit Field)
+        0x95, 0x01,       // Report Count (1)
+        0x75, 0x08,       // Report Size (8)
+        0x81, 0x01,       // Input (Constant, Array, Absolute, Bit Field)
+        0x95, 0x05,       // Report Count (5)
+        0x75, 0x01,       // Report Size (1)
+        0x05, 0x08,       // Usage Page (LEDs)
+        0x19, 0x01,       // Usage Minimum (1) (Num Lock)
+        0x29, 0x05,       // Usage Maximum (5) (Kana)
+        0x91, 0x02,       // Output (Data, Value, Absolute, Non-volatile, Bit Field)
+        0x95, 0x01,       // Report Count (1)
+        0x75, 0x03,       // Report Size (3)
+        0x91, 0x01,       // Output (Constant, Array, Absolute, Non-volatile, Bit Field)
+        0x95, 0x06,       // Report Count (6)
+        0x75, 0x08,       // Report Size (8)
+        0x15, 0x00,       // Logical Minimum (0)
+        0x26, 0xFF, 0x00, // Logical Maximum (255)
+        0x05, 0x07,       // Usage Page (Keyboard)
+        0x19, 0x00,       // Usage Minimum (0)
+        0x2A, 0xFF, 0x00, // Usage Maximum (255)
+        0x81, 0x00,       // Input (Data, Array, Absolute, Bit Field)
+        0xC0              // End Collection
+};
 
 static KeyInfo keyArray[] = {
     {KEY_A, XK_A},
@@ -408,7 +407,7 @@ static int keyboard_iow(int down, unsigned long keysym)
     }
 
     if (keyboard_fd < 0)
-        keyboard_fd = open(KB_DEV, O_WRONLY);
+        keyboard_fd = open(KB_DEV, O_RDWR);
 
     if (keyboard_fd > -1)
         write(keyboard_fd, &keyboard_data, 8);
@@ -508,7 +507,7 @@ int hid_init(void)
 
     hid_f_write(UDC, USB_DEV_NAME, 16);
 
-    keyboard_fd = open(KB_DEV, O_WRONLY);
+    keyboard_fd = open(KB_DEV, O_RDWR);
     if (keyboard_fd < 0)
         printf("can not open %s \n", KB_DEV);
 
@@ -569,3 +568,56 @@ void pointer_event(int mask, int x, int y, rfbClientPtr client)
 
     mouse_iow(mask, x, y, nurfb->vcd_info.hdisp, nurfb->vcd_info.vdisp);
 }
+#ifdef CONFIG_KEYBOARD_EVENT
+void *rfbNuKeyEventThread(void *ptr)
+{
+    struct nu_rfb *nurfb = (struct nu_rfb *)ptr;
+    int ret, efd;
+    struct epoll_event event;
+    struct epoll_event *events;
+
+    efd = epoll_create1(0);
+    if (efd == -1)
+    {
+        rfbErr("epoll_create fail \n");
+        return NULL;
+    }
+
+    event.data.fd = keyboard_fd;
+    event.events = EPOLLIN | EPOLLET | EPOLLPRI;
+    ret = epoll_ctl(efd, EPOLL_CTL_ADD, keyboard_fd, &event);
+    if (ret == -1)
+    {
+        rfbErr("epoll_ctl fail\n");
+        return NULL;
+    }
+
+    /* Buffer where events are returned */
+    events = calloc(MAXEVENTS, sizeof(event));
+
+    while (1)
+    {
+        int n, i;
+
+        n = epoll_wait(efd, events, MAXEVENTS, -1);
+        for (i = 0; i < n; i++)
+        {
+            if (keyboard_fd == events[i].data.fd)
+            {
+                char buffer[1];
+                int nbytes;
+
+                if (events[i].events & EPOLLIN)
+                {
+                    nbytes = read(keyboard_fd, buffer, sizeof(buffer));
+                    rfbErr("nbytes %d byte0 %d\n", nbytes, buffer[0]);
+                }
+            }
+        }
+    }
+
+    free(events);
+
+    return NULL;
+}
+#endif
