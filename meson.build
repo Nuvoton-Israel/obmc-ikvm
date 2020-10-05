@@ -26,6 +26,14 @@ executable(
     install: true
 )
 
+conf_data = configuration_data()
+
+if get_option('keyevent').enabled()
+  conf_data.set('KEYBOARD_EVENT', true, description : 'Enabled Keyboard Event')
+endif
+
+configure_file(output : 'config.h', configuration : conf_data)
+
 configure_file(
     input: 'start-ipkvm.service',
     output: 'start-ipkvm.service',

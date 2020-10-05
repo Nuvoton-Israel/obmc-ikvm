@@ -31,7 +31,9 @@
 #include <unistd.h>
 #include <time.h>
 #include <rfb/rfbconfig.h>
-#ifdef CONFIG_KEYBOARD_EVENT
+#include "config.h"
+
+#ifdef KEYBOARD_EVENT
 #include <sys/epoll.h>
 #include <pthread.h>
 #endif
@@ -45,7 +47,7 @@
 
 #define REFRESHCNT 5
 
-#ifdef CONFIG_KEYBOARD_EVENT
+#ifdef KEYBOARD_EVENT
 #define MAXEVENTS 64
 #endif
 
@@ -165,7 +167,7 @@ void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 void rfbNuRunEventLoop(rfbScreenInfoPtr screen, long usec, rfbBool runInBackground);
 rfbBool rfbNuResetVCD(struct nu_rfb *nurfb);
 rfbBool rfbNuResetECE(struct nu_rfb *nurfb);
-#ifdef CONFIG_KEYBOARD_EVENT
+#ifdef KEYBOARD_EVENT
 void *rfbNuKeyEventThread(void *ptr);
 #endif
 #endif

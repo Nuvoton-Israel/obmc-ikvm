@@ -568,7 +568,7 @@ void pointer_event(int mask, int x, int y, rfbClientPtr client)
 
     mouse_iow(mask, x, y, nurfb->vcd_info.hdisp, nurfb->vcd_info.vdisp);
 }
-#ifdef CONFIG_KEYBOARD_EVENT
+#ifdef KEYBOARD_EVENT
 void *rfbNuKeyEventThread(void *ptr)
 {
     struct nu_rfb *nurfb = (struct nu_rfb *)ptr;
