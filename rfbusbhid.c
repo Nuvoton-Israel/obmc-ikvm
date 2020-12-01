@@ -505,7 +505,7 @@ int hid_init(void)
     symlink(USB0, CONF0);
     symlink(USB1, CONF1);
 
-    hid_f_write(UDC, USB_DEV_NAME, 16);
+    hid_f_write(UDC, USB_DEV_NAME, strlen(USB_DEV_NAME));
 
     keyboard_fd = open(KB_DEV, O_RDWR);
     if (keyboard_fd < 0)
