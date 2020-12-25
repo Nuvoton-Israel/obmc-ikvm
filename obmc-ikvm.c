@@ -28,10 +28,6 @@ struct nu_rfb *nurfb = NULL;
 
 static void clientgone(rfbClientPtr cl)
 {
-    int index = cl->sock - nurfb->sock_start;
-
-    nurfb->rcvdCount[index] = 0;
-
     nurfb->cl_cnt--;
 
     if (nurfb->cl_cnt == 0)
@@ -53,7 +49,8 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
     if (nurfb->cl_cnt == 1)
         nurfb->sock_start = cl->sock;
 
-    nurfb->refreshCount[cl->sock - nurfb->sock_start] = REFRESHCNT;
+	for (int i = 0 ; i < nurfb->cl_cnt; i++)
+		nurfb->refreshCount[i] = REFRESHCNT;
 
     cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;

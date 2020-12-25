@@ -21,6 +21,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this software; If not, see <http://www.gnu.org/licenses/>
  */
+#include <stdint.h>
 #include <rfb/rfb.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -45,7 +46,7 @@
 #define FAKE_FB_HEIGHT 240
 #define FAKE_FB_BPP 2
 
-#define REFRESHCNT 5
+#define REFRESHCNT 10
 
 #ifdef KEYBOARD_EVENT
 #define MAXEVENTS 64
@@ -53,15 +54,15 @@
 
 struct ece_ioctl_cmd
 {
-    unsigned int framebuf;
-    unsigned int gap_len;
-    char *buf;
-    int len;
-    int x;
-    int y;
-    int w;
-    int h;
-    int lp;
+    uint32_t framebuf;
+    uint32_t gap_len;
+    uint8_t *buf;
+    uint32_t len;
+    uint32_t x;
+    uint32_t y;
+    uint32_t w;
+    uint32_t h;
+    uint32_t lp;
 };
 
 #define ECE_IOC_MAGIC 'k'
@@ -76,38 +77,38 @@ struct ece_ioctl_cmd
 
 struct vcd_info
 {
-    unsigned int vcd_fb;
-    unsigned int pixelClock;
-    unsigned int line_pitch;
-    int hdisp;
-    int hfrontporch;
-    int hsync;
-    int hbackporch;
-    int vdisp;
-    int vfrontporch;
-    int vsync;
-    int vbackporch;
-    int refresh_rate;
-    int hpositive;
-    int vpositive;
-    int bpp;
-    int r_max;
-    int g_max;
-    int b_max;
-    int r_shift;
-    int g_shift;
-    int b_shift;
-    int mode;
-    unsigned int reg;
-    unsigned int reg_val;
+    uint32_t vcd_fb;
+    uint32_t pixelClock;
+    uint32_t line_pitch;
+    uint32_t hdisp;
+    uint32_t hfrontporch;
+    uint32_t hsync;
+    uint32_t hbackporch;
+    uint32_t vdisp;
+    uint32_t vfrontporch;
+    uint32_t vsync;
+    uint32_t vbackporch;
+    uint32_t refresh_rate;
+    uint32_t hpositive;
+    uint32_t vpositive;
+    uint32_t bpp;
+    uint32_t r_max;
+    uint32_t g_max;
+    uint32_t b_max;
+    uint32_t r_shift;
+    uint32_t g_shift;
+    uint32_t b_shift;
+    uint32_t mode;
+    uint32_t reg;
+    uint32_t reg_val;
 };
 
 struct rect
 {
-    unsigned int x;
-    unsigned int y;
-    unsigned int w;
-    unsigned int h;
+    uint32_t x;
+    uint32_t y;
+    uint32_t w;
+    uint32_t h;
 };
 
 struct nu_rfb

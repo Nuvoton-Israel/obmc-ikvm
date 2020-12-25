@@ -334,6 +334,7 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		nurfb->fake_fb = malloc(vcd_info->hdisp * vcd_info->vdisp * 2);
 		if (!nurfb->fake_fb)
 			goto error;
+		 memset(nurfb->fake_fb, 0, vcd_info->hdisp * vcd_info->vdisp * 2);
 	}
 
 	cmd.lp = vcd_info->line_pitch;
@@ -384,8 +385,10 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 {
 	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;
 	int index = cl->sock - nurfb->sock_start;
+	int ret;
 
-	if (rfbNuChkVCDRes(nurfb, cl))
+	ret = rfbNuChkVCDRes(nurfb, cl);
+	if (ret != 0)
 	{
 		int i;
 
@@ -415,7 +418,7 @@ static int rfbNuGetUpdate(rfbClientRec *cl)
 		return 1;
 	}
 
-	if (nurfb->refreshCount[index])
+	if (nurfb->refreshCount[index] && (ret >= 0) && (!nurfb->fake_fb))
 		nurfb->refreshCount[index]--;
 
 	if (nurfb->refreshCount[index] > 0)
@@ -728,7 +731,7 @@ rfbNuUpdateClient(rfbClientPtr cl)
 
 		if (screen->deferUpdateTime == 0)
 		{
-			if (nurfb->rcvdCount[index] != ptr->rcvdCount) {
+			if ((nurfb->rcvdCount[index] != ptr->rcvdCount) || (nurfb->cl_cnt > 1)) {
 				if (rfbNuSendFramebufferUpdate(cl) == TRUE)
 					nurfb->rcvdCount[index]= ptr->rcvdCount;
 				rfbDumpFPS(cl);
@@ -747,7 +750,7 @@ rfbNuUpdateClient(rfbClientPtr cl)
 				|| ((tv.tv_sec - cl->startDeferring.tv_sec) * 1000 + (tv.tv_usec - cl->startDeferring.tv_usec) / 1000) > screen->deferUpdateTime)
 			{
 				cl->startDeferring.tv_usec = 0;
-				if (nurfb->rcvdCount[index] != ptr->rcvdCount) {
+				if ((nurfb->rcvdCount[index] != ptr->rcvdCount) || (nurfb->cl_cnt > 1)) {
 					if (rfbNuSendFramebufferUpdate(cl) == TRUE)
 						nurfb->rcvdCount[index] = ptr->rcvdCount;
 					rfbDumpFPS(cl);
