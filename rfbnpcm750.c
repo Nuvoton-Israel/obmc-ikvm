@@ -267,6 +267,7 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 {
 	struct vcd_info *vcd_info = &nurfb->vcd_info;
 	struct ece_ioctl_cmd cmd;
+	int total_wr, total_hr;
 
 	if (nurfb->last_mode == RAWFB_MMAP)
 	{
@@ -344,8 +345,16 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		goto error;
 	}
 
+	total_wr = vcd_info->hdisp /16;
+	if (vcd_info->hdisp % 16)
+		total_wr+=1;
 
-	nurfb->raw_hextile_mmap = vcd_info->hdisp * vcd_info->vdisp * (vcd_info->bpp + 1);
+	total_hr = vcd_info->vdisp /16;
+	if (vcd_info->vdisp % 16)
+		total_hr+=1;
+
+	nurfb->raw_hextile_mmap = vcd_info->hdisp * vcd_info->vdisp * vcd_info->bpp +
+		total_wr * total_hr * (16 +1); // gap size + subencoding type byte
 	nurfb->raw_hextile_addr = mmap(0, nurfb->raw_hextile_mmap, PROT_READ,
 								   MAP_SHARED, nurfb->hextile_fd, 0);
 	if (!nurfb->raw_hextile_addr)
@@ -356,7 +365,7 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 
 	if (!nurfb->fake_fb)
 	{
-		nurfb->raw_fb_mmap = vcd_info->line_pitch * vcd_info->vdisp;
+		nurfb->raw_fb_mmap = nurfb->frame_size;
 		nurfb->raw_fb_addr = mmap(0, nurfb->raw_fb_mmap, PROT_READ, MAP_SHARED,
 								  nurfb->raw_fb_fd, 0);
 		if (!nurfb->raw_fb_addr)
@@ -366,8 +375,10 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		}
 		else
 		{
-			rfbLog("   w: %d h: %d b: %d addr: %p sz: %d\n", vcd_info->hdisp, vcd_info->vdisp,
-				   16, nurfb->raw_fb_addr, nurfb->frame_size);
+			rfbLog("   w: %d h: %d b: %d addr: %p sz: 0x%x lp: %d\n", vcd_info->hdisp, vcd_info->vdisp,
+				   16, nurfb->raw_fb_addr, nurfb->frame_size, vcd_info->line_pitch);
+			rfbLog("   raw fb map size 0x%x\n", nurfb->raw_fb_mmap);
+			rfbLog("   raw hextile map size 0x%x\n", nurfb->raw_hextile_mmap);
 		}
 	}
 	else
