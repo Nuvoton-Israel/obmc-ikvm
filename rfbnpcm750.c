@@ -58,7 +58,7 @@ rfbBool rfbNuResetECE(struct nu_rfb *nurfb)
 
 	return TRUE;
 }
-
+#if 0
 static rfbBool rfbNuResetENCAddr(struct nu_rfb *nurfb)
 {
 	int err;
@@ -71,7 +71,7 @@ static rfbBool rfbNuResetENCAddr(struct nu_rfb *nurfb)
 
 	return TRUE;
 }
-
+#endif
 rfbBool
 rfbNuSendUpdateBuf(rfbClientPtr cl, char *buf, int len)
 {
@@ -576,8 +576,6 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 							 int w,
 							 int h)
 {
-	struct nu_rfb *nurfb  = (struct nu_rfb *)cl->clientData;
-
 	if (cl->ublen > 0)
 		if (!rfbSendUpdateBuf(cl))
 			return FALSE;
@@ -588,7 +586,7 @@ rfbNuSendRectEncodingHextile(rfbClientPtr cl,
 	return FALSE;
 }
 
-static rfbBool
+static void
 rfbDumpFPS(rfbClientPtr cl)
 {
 	struct nu_rfb *nurfb = (struct nu_rfb *)cl->clientData;

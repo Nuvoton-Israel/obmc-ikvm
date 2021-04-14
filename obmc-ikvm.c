@@ -46,11 +46,13 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
 
     nurfb->cl_cnt++;
 
-    if (nurfb->cl_cnt == 1)
+    if (nurfb->cl_cnt == 1) {
         nurfb->sock_start = cl->sock;
+    }
 
-	for (int i = 0 ; i < nurfb->cl_cnt; i++)
+	for (int i = 0 ; i < nurfb->cl_cnt; i++) {
 		nurfb->refreshCount[i] = REFRESHCNT;
+    }
 
     cl->clientData = nurfb;
     cl->clientGoneHook = clientgone;
