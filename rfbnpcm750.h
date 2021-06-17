@@ -115,7 +115,7 @@ struct nu_rfb
 {
     struct vcd_info vcd_info;
     struct rect *rect_table;
-    char *fake_fb;
+    uint8_t fake_fb;
     char *raw_fb_addr;
     char *raw_hextile_addr;
     int raw_fb_mmap;

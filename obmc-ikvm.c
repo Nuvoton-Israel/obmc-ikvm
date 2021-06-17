@@ -58,6 +58,8 @@ static enum rfbNewClientAction newclient(rfbClientPtr cl)
     cl->clientGoneHook = clientgone;
     cl->preferredEncoding = rfbEncodingHextile;
 
+    rfbLog("client bitsPerPixel: bpp %d\n", cl->format.bitsPerPixel);
+
     return RFB_CLIENT_ACCEPT;
 }
 
@@ -121,7 +123,7 @@ int main(int argc, char **argv)
     rfbNuInitRfbFormat(rfbScreen);
 
     rfbScreen->desktopName = "obmc iKVM";
-    rfbScreen->frameBuffer = malloc(nurfb->vcd_info.hdisp * nurfb->vcd_info.vdisp * nurfb->vcd_info.bpp); //nurfb->raw_fb_addr;
+    rfbScreen->frameBuffer = malloc(nurfb->vcd_info.hdisp * nurfb->vcd_info.vdisp * 3); //nurfb->raw_fb_addr;
     rfbScreen->alwaysShared = TRUE;
     rfbScreen->ptrAddEvent = pointer_event;
     rfbScreen->kbdAddEvent = keyboard;

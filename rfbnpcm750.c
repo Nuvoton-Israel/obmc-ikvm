@@ -130,7 +130,7 @@ void rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char *framebuffer,
 
 	free(screen->frameBuffer);
 
-	screen->frameBuffer = malloc(width * height * 2);//framebuffer;
+	screen->frameBuffer = malloc(width * height * 3);//framebuffer;
 
 	/* Adjust pointer position if necessary */
 
@@ -277,8 +277,7 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		}
 		else
 		{
-			free(nurfb->fake_fb);
-			nurfb->fake_fb = NULL;
+			nurfb->fake_fb = 0;
 		}
 
 		munmap(nurfb->raw_hextile_addr, nurfb->raw_hextile_mmap);
@@ -332,10 +331,8 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 		/* grapich is off, fake a FB */
 		vcd_info->hdisp = FAKE_FB_WIDTH;
 		vcd_info->vdisp = FAKE_FB_HEIGHT;
-		nurfb->fake_fb = malloc(vcd_info->hdisp * vcd_info->vdisp * 2);
-		if (!nurfb->fake_fb)
-			goto error;
-		 memset(nurfb->fake_fb, 0, vcd_info->hdisp * vcd_info->vdisp * 2);
+
+		nurfb->fake_fb = 1;
 	}
 
 	cmd.lp = vcd_info->line_pitch;
@@ -381,8 +378,6 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 			rfbLog("   raw hextile map size 0x%x\n", nurfb->raw_hextile_mmap);
 		}
 	}
-	else
-		nurfb->raw_fb_addr = nurfb->fake_fb;
 
 	nurfb->last_mode = RAWFB_MMAP;
 	return 0;
@@ -613,13 +608,12 @@ rfbNuSendFakeFramebufferUpdate(rfbClientPtr cl)
 {
 	rfbFramebufferUpdateMsg *fu = (rfbFramebufferUpdateMsg *)cl->updateBuf;
 	rfbBool result = TRUE;
-	struct nu_rfb *nurfb= (struct nu_rfb *)cl->clientData;
 
 	fu->nRects = Swap16IfLE(1);
 	fu->type = rfbFramebufferUpdate;
 	cl->ublen = sz_rfbFramebufferUpdateMsg;
 
-	memcpy(cl->scaledScreen->frameBuffer, nurfb->fake_fb, FAKE_FB_WIDTH * FAKE_FB_HEIGHT * FAKE_FB_BPP);
+	memset(cl->scaledScreen->frameBuffer, 0, FAKE_FB_WIDTH * FAKE_FB_HEIGHT * FAKE_FB_BPP);
 
 	if (!rfbSendRectEncodingHextile(cl, 0, 0, FAKE_FB_WIDTH, FAKE_FB_HEIGHT))
 		goto updateFailed;
@@ -691,6 +685,7 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 				nurfb->raw_fb_addr + src_of,
 				hbytes);
 		}
+
 
 	for (int i = 0; i < nurfb->nRects; i++)
 	{
@@ -852,8 +847,7 @@ void rfbClearNuRfb(struct nu_rfb *nurfb)
 {
 	if (nurfb->fake_fb)
 	{
-		free(nurfb->fake_fb);
-		nurfb->fake_fb = NULL;
+		nurfb->fake_fb = 0;
 	}
 	else if (nurfb->raw_fb_addr)
 	{
