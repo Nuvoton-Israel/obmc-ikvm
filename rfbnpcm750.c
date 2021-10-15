@@ -306,7 +306,7 @@ static int rfbNuInitVCD(struct nu_rfb *nurfb, int first)
 	if (rfbNuGetVCDInfo(nurfb, vcd_info) < 0)
 		goto error;
 
-	nurfb->frame_size = vcd_info->hdisp * vcd_info->vdisp * vcd_info->bpp;
+	nurfb->frame_size = vcd_info->line_pitch * vcd_info->vdisp;
 
 	if (first) {
 		nurfb->hextile_fd = open("/dev/hextile", O_RDWR);
