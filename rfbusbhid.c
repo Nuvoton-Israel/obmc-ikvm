@@ -334,6 +334,7 @@ static int keyboard_iow(int down, unsigned long keysym)
 {
     int i = 0;
     unsigned char code = 0;
+    int retryCount = 5;
     KeyInfo *kPtr;
 
     if (keysym >= 0x61 && keysym <= 0x7a)
@@ -411,8 +412,22 @@ static int keyboard_iow(int down, unsigned long keysym)
     }
 
     if (keyboard_fd > -1) {
-        if (write(keyboard_fd, &keyboard_data, 8) < 0) {
-            printf("error: %s ", strerror(errno));
+        while (retryCount > 0)
+        {
+            if (write(keyboard_fd, &keyboard_data, 8) == 8)
+            {
+                break;
+            }
+
+            if (errno != EAGAIN)
+            {
+                if (errno != ESHUTDOWN)
+                {
+                    printf("error: %s ", strerror(errno));
+                }
+                break;
+            }
+            retryCount--;
         }
     }
 
@@ -425,6 +440,7 @@ static int mouse_iow(int mask, int x, int y, int w, int h)
     unsigned char button = 0;
     unsigned char wheel = 0;
     unsigned char mouse_data[6] = {0, 0, 0, 0, 0, 0};
+    int retryCount = 5;
 
     m_x = (unsigned short)(((double)MOUSE_ABS_RES / w) * x);
     m_y = (unsigned short)(((double)MOUSE_ABS_RES / h) * y);
@@ -464,11 +480,27 @@ static int mouse_iow(int mask, int x, int y, int w, int h)
         mouse_fd = open(MS_DEV, O_WRONLY | O_NONBLOCK);
     }
 
-    if (mouse_fd > -1) {
-        if (write(mouse_fd, &mouse_data, 6) < 0){
-            printf("error: %s ", strerror(errno));
+    if (mouse_fd > -1)
+    {
+        while (retryCount > 0)
+        {
+            if (write(mouse_fd, &mouse_data, 6) == 6)
+            {
+                break;
+            }
+
+            if (errno != EAGAIN)
+            {
+                if (errno != ESHUTDOWN)
+                {
+                    printf("error: %s ", strerror(errno));
+                }
+                break;
+            }
+            retryCount--;
         }
     }
+
 
     return 0;
 }
