@@ -36,6 +36,7 @@
 #define SERIALNUMBER "/sys/kernel/config/usb_gadget/hid/strings/0x409/serialnumber"
 #define MANUFACTURER "/sys/kernel/config/usb_gadget/hid/strings/0x409/manufacturer"
 #define PRODUCT "/sys/kernel/config/usb_gadget/hid/strings/0x409/product"
+#define ATTRIBUTES "/sys/kernel/config/usb_gadget/hid/configs/c.1/bmAttributes"
 #define MAXPOWER "/sys/kernel/config/usb_gadget/hid/configs/c.1/MaxPower"
 #define USB0 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0"
 #define USB1 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1"
@@ -63,41 +64,37 @@ static int keyboard_fd = -1;
 
 static const unsigned char hid_report_mouse[] =
     {
-        USAGE_PAGE, 0x01,   /* Usage Page (Generic Desktop) */
-        USAGE, 0x02,        /* Usage (Mouse) */
-        COLLECTION, 0x01,   /* Collection (Application) */
-        USAGE, 0x01,        /*   Usage (Pointer) */
-        COLLECTION, 0x00,   /*     Collection (Physical) */
-        USAGE_PAGE, 0x09,   /*     Usage Page (Buttons) */
-        USAGE_MIN, 0x01,    /*     Usage Minimum (1) */
-        USAGE_MAX, 0x03,    /*     Usage Maximum (3) */
-        LOGICAL_MIN, 0x00,  /*     Logical Minimum (0) */
-        LOGICAL_MAX, 0x01,  /*     Logical Maximum (1) */
-        REPORT_COUNT, 0x08, /*     Report Count (8) */
-        REPORT_SIZE, 0x01,  /*     Report Size (1) */
-        INPUT, 0x02,        /*     Input (Data, Variable, Absolute) */
-        USAGE_PAGE, 0x01,   /*     Usage Page (Generic Desktop) */
-        USAGE, 0x30,        /*     Usage (X) */
-        USAGE, 0x31,        /*     Usage (Y) */
-        0x35, 0x00,         /*     PHYSICAL_MINIMUM (0) */
-        0x46, 0xf0, 0x07,   /*     PHYSICAL_MAXIMUM (2032) */
-        LOGICAL_MIN, 0x00,  /*     LOGICAL_MINIMUM (0) */
-        0x26, 0xf0, 0x07,   /*     LOGICAL_MAXIMUM (2032) */
-        0x65, 0x11,         /*     UNIT (SI Lin:Distance) */
-        0x55, 0x0e,         /*     UNIT_EXPONENT (-2) */
-        REPORT_SIZE, 0x10,  /* 	    REPORT_SIZE (16) */
-        REPORT_COUNT, 0x02, /* 	    REPORT_COUNT (2) */
-        INPUT, 0x02,        /* 	    INPUT (Data,Var,Abs) */
-        USAGE, 0x38,        /* 	    Usage (Wheel) */
-        LOGICAL_MIN, 0xff,  /* 	    LOGICAL_MINIMUM (-1) */
-        LOGICAL_MAX, 0x01,  /* 	    LOGICAL_MAXIMUM (1) */
-        0x35, 0,            /* 	    PHYSICAL_MINIMUM (-127) */
-        0x45, 0,            /* 	    PHYSICAL_MAXIMUM (127) */
-        REPORT_SIZE, 0x08,  /* 		REPORT_SIZE (8) */
-        REPORT_COUNT, 0x01, /* 		REPORT_COUNT (1) */
-        INPUT, 0x06,        /* 		INPUT (Data,Var,Rel) */
-        END_COLLECTION,
-        END_COLLECTION};
+        0x05, 0x01,       // USAGE_PAGE (Generic Desktop)
+        0x09, 0x02,       // USAGE (Mouse)
+        0xa1, 0x01,       // COLLECTION (Application)
+        0x09, 0x01,       //   USAGE (Pointer)
+        0xa1, 0x00,       //   COLLECTION (Physical)
+        0x05, 0x09,       //     USAGE_PAGE (Button)
+        0x19, 0x01,       //     USAGE_MINIMUM (Button 1)
+        0x29, 0x03,       //     USAGE_MAXIMUM (Button 3)
+        0x15, 0x00,       //     LOGICAL_MINIMUM (0)
+        0x25, 0x01,       //     LOGICAL_MAXIMUM (1)
+        0x95, 0x03,       //     REPORT_COUNT (3)
+        0x75, 0x01,       //     REPORT_SIZE (1)
+        0x81, 0x02,       //     INPUT (Data,Var,Abs)
+        0x95, 0x01,       //     REPORT_COUNT (1)
+        0x75, 0x05,       //     REPORT_SIZE (5)
+        0x81, 0x03,       //     INPUT (Cnst,Var,Abs)
+        0x05, 0x01,       //     USAGE_PAGE (Generic Desktop)
+        0x09, 0x30,       //     USAGE (X)
+        0x09, 0x31,       //     USAGE (Y)
+        0x35, 0x00,       //     PHYSICAL_MINIMUM (0)
+        0x46, 0xff, 0x7f, //     PHYSICAL_MAXIMUM (32767)
+        0x15, 0x00,       //     LOGICAL_MINIMUM (0)
+        0x26, 0xff, 0x7f, //     LOGICAL_MAXIMUM (32767)
+        0x65, 0x11,       //     UNIT (SI Lin:Distance)
+        0x55, 0x00,       //     UNIT_EXPONENT (0)
+        0x75, 0x10,       //     REPORT_SIZE (16)
+        0x95, 0x02,       //     REPORT_COUNT (2)
+        0x81, 0x02,       //     INPUT (Data,Var,Abs)
+        0xc0,             //   END_COLLECTION
+        0xc0,             // END_COLLECTION
+    };
 
 /* keyboard Report descriptor */
 static const unsigned char hid_report_keyboard[] =
@@ -281,17 +278,18 @@ static struct hid_init_desc _hid_init_desc[] = {
     DESC(BCDDEVICE, "0x7200", 8),
     DESC(BCDUSB, "0x0200", 8),
     DESC(BMAXPACKERSIZE0, "0x08", 4),
-    DESC(SERIALNUMBER, "0x00", 4),
-    DESC(MANUFACTURER, "0x01", 4),
-    DESC(PRODUCT, "0x02", 4),
-    DESC(MAXPOWER, "0x01", 4),
+    DESC(SERIALNUMBER, "OBMC0001", 8),
+    DESC(MANUFACTURER, "OpenBMC", 8),
+    DESC(PRODUCT, "virtual_input", 16),
+    DESC(ATTRIBUTES, "0xe0", 4),
+    DESC(MAXPOWER, "0xc8", 4),
     DESC(K_PROROCOL, "0x01", 4),
     DESC(K_SUBCLASS, "0x01", 4),
     DESC(K_REPORTLENGTH, "0x40", 4),
     DESC(K_REPORTDESC, &hid_report_keyboard, sizeof(hid_report_keyboard)),
     DESC(M_PROROCOL, "0x02", 4),
     DESC(M_SUBCLASS, "0x01", 4),
-    DESC(M_REPORTLENGTH, "0x40", 4),
+    DESC(M_REPORTLENGTH, "0x05", 4),
     DESC(M_REPORTDESC, &hid_report_mouse, sizeof(hid_report_mouse)),
     DESC(CONFIGURATION, "Conf 1", 6),
 };
@@ -436,45 +434,23 @@ static int keyboard_iow(int down, unsigned long keysym)
 
 static int mouse_iow(int mask, int x, int y, int w, int h)
 {
-    unsigned short m_x = 0, m_y = 0;
-    unsigned char button = 0;
-    unsigned char wheel = 0;
-    unsigned char mouse_data[6] = {0, 0, 0, 0, 0, 0};
+    uint8_t report[5] = {0, 0, 0, 0, 0};
     int retryCount = 5;
 
-    m_x = (unsigned short)(((double)MOUSE_ABS_RES / w) * x);
-    m_y = (unsigned short)(((double)MOUSE_ABS_RES / h) * y);
+    report[0] = ((mask & 0x4) >> 1) |
+                ((mask & 0x2) << 1) | (mask & 0x1);
 
-    if (m_x > MOUSE_ABS_RES)
-        m_x = MOUSE_ABS_RES;
-
-    if (m_y > MOUSE_ABS_RES)
-        m_y = MOUSE_ABS_RES;
-
-    if (mask <= 4)
+    if (x >= 0 && x < w)
     {
-        if (mask == 2)
-            button = 4;
-        else if (mask == 4)
-            button = 2;
-        else
-            button = mask;
-    }
-    else
-    {
-        button = 0;
-        if (mask == 8)
-            wheel = 1;
-        else if (mask == 16)
-            wheel = 0xff;
+        uint16_t xx = (uint16_t)(x * (SHRT_MAX + 1) / w);
+        memcpy(&report[1], &xx, 2);
     }
 
-    mouse_data[0] = button;
-    mouse_data[1] = m_x & 0xff;
-    mouse_data[2] = (m_x >> 8) & 0xff;
-    mouse_data[3] = m_y & 0xff;
-    mouse_data[4] = (m_y >> 8) & 0xff;
-    mouse_data[5] = wheel;
+    if (y >= 0 && y < h)
+    {
+        uint16_t yy = (uint16_t)(y * (SHRT_MAX + 1) / h);
+        memcpy(&report[3], &yy, 2);
+    }
 
     if (mouse_fd < 0) {
         mouse_fd = open(MS_DEV, O_WRONLY | O_NONBLOCK);
@@ -484,7 +460,7 @@ static int mouse_iow(int mask, int x, int y, int w, int h)
     {
         while (retryCount > 0)
         {
-            if (write(mouse_fd, &mouse_data, 6) == 6)
+            if (write(mouse_fd, &report, 5) == 5)
             {
                 break;
             }
@@ -614,6 +590,7 @@ void pointer_event(int mask, int x, int y, rfbClientPtr client)
     struct nu_rfb *nurfb = (struct nu_rfb *)client->clientData;
 
     mouse_iow(mask, x, y, nurfb->vcd_info.hdisp, nurfb->vcd_info.vdisp);
+    rfbDefaultPtrAddEvent(mask, x, y, client);
 }
 #ifdef KEYBOARD_EVENT
 void *rfbNuKeyEventThread(void *ptr)
