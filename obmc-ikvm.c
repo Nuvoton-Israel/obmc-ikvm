@@ -26,6 +26,55 @@
 
 struct nu_rfb *nurfb = NULL;
 
+/* @brief Cursor bitmap width */
+static  int cursorWidth = 20;
+/* @brief Cursor bitmap height */
+static  int cursorHeight = 20;
+/* @brief Cursor bitmap */
+static  char cursor[] = "                    "
+                        " x                  "
+                        " xx                 "
+                        " xxx                "
+                        " xxxx               "
+                        " xxxxx              "
+                        " xxxxxx             "
+                        " xxxxxxx            "
+                        " xxxxxxxx           "
+                        " xxxxxxxxx          "
+                        " xxxxxxxxxx         "
+                        " xxxxxxxxxxx        "
+                        " xxxxxxx            "
+                        " xxxxxxx            "
+                        " xxx  xxx           "
+                        " xx   xxx           "
+                        " x     xxx          "
+                        "       xxx          "
+                        "        x           "
+                        "                    ";
+
+/* @brief Cursor bitmap mask */
+static char cursorMask[] = " o                  "
+                           "oxo                 "
+                           "oxxo                "
+                           "oxxxo               "
+                           "oxxxxo              "
+                           "oxxxxxo             "
+                           "oxxxxxxo            "
+                           "oxxxxxxxo           "
+                           "oxxxxxxxxo          "
+                           "oxxxxxxxxxo         "
+                           "oxxxxxxxxxxo        "
+                           "oxxxxxxxxxxxo       "
+                           "oxxxxxxxoooo        "
+                           "oxxxxxxxo           "
+                           "oxxxooxxxo          "
+                           "oxxo oxxxo          "
+                           "oxo   oxxxo         "
+                           " o    oxxxo         "
+                           "       oxo          "
+                           "        o           ";
+
+
 static void clientgone(rfbClientPtr cl)
 {
     nurfb->cl_cnt--;
@@ -128,6 +177,10 @@ int main(int argc, char **argv)
     rfbScreen->ptrAddEvent = pointer_event;
     rfbScreen->kbdAddEvent = keyboard;
     rfbScreen->newClientHook = newclient;
+    rfbScreen->cursor = rfbMakeXCursor(cursorWidth, cursorHeight, (char*)cursor,
+                                    (char*)cursorMask);
+    rfbScreen->cursor->xhot = 16;
+    rfbScreen->cursor->yhot = 16;
 
     /* initialize the server */
     rfbInitServer(rfbScreen);
