@@ -670,6 +670,15 @@ rfbNuSendFramebufferUpdate(rfbClientPtr cl)
 
 	fu->nRects = Swap16IfLE(nurfb->nRects);
 	fu->type = rfbFramebufferUpdate;
+	if (cl->enableCursorShapeUpdates) {
+		if (cl->cursorWasChanged && cl->readyForSetColourMapEntries) {
+			cl->ublen = sz_rfbFramebufferUpdateMsg;
+			cl->cursorWasChanged = FALSE;
+			if (!rfbSendCursorShape(cl))
+				goto updateFailed;
+		}
+	}
+
 	cl->ublen = sz_rfbFramebufferUpdateMsg;
 
 	if (cl->enableLastRectEncoding)
