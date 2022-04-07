@@ -120,6 +120,8 @@ void Server::sendFrame()
     char* data = nullptr;
     rfbClientIteratorPtr it;
     rfbClientPtr cl;
+    bool anyClientNeedUpdate = false;
+    bool anyClientSkipFrame = false;
 #if 0
     int64_t frame_crc = -1;
 #endif
@@ -133,104 +135,82 @@ void Server::sendFrame()
 
     while ((cl = rfbClientIteratorNext(it)))
     {
-        unsigned int x, y, w, h, clipcount;
-
         ClientData* cd = (ClientData*)cl->clientData;
-        Server* server = (Server*)cl->screen->screenData;
-        rfbFramebufferUpdateMsg* fu = (rfbFramebufferUpdateMsg*)cl->updateBuf;
 
         if (!cd)
-        {
             continue;
-        }
 
         if (cd->skipFrame)
         {
             cd->skipFrame--;
+            anyClientSkipFrame = true;
             continue;
         }
 
-        if (!cd->needUpdate)
-        {
-            continue;
-        }
-
-        if (!data) {
-            video.getFrame();
-
-            data = video.getData();
-            if (!data)
-            {
-                return;
-            }
-        }
-
-#if 0
-        if (calcFrameCRC)
-        {
-            if (frame_crc == -1)
-            {
-                /* JFIF header contains some varying data so skip it for
-                 * checksum calculation */
-                frame_crc = boost::crc<32, 0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF,
-                                       true, true>(data + 0x30,
-                                                   video.getFrameSize() - 0x30);
-            }
-
-            if (cd->last_crc == frame_crc)
-            {
-                continue;
-            }
-
-            cd->last_crc = frame_crc;
-        }
-#endif
-
-        if (server->numClients == 1) {
-            if (FullframeCounter > 0)
-                FullframeCounter--;
-
-            if (FullframeCounter == 0)
-                video.setCompareMode(true);
-        }
-
-        clipcount = video.getClip(&x, &y, &w, &h);
-        if (clipcount <= 0)
-            continue;
-
-        cd->needUpdate = false;
-
-        if (cl->enableLastRectEncoding)
-        {
-            fu->nRects = 0xFFFF;
-        }
-        else
-        {
-            fu->nRects = Swap16IfLE(clipcount);
-        }
-
-        fu->type = rfbFramebufferUpdate;
-        cl->ublen = sz_rfbFramebufferUpdateMsg;
-        rfbSendUpdateBuf(cl);
-        rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
-
-#if 0
-        cl->tightEncoding = rfbEncodingTight;
-        rfbSendTightHeader(cl, 0, 0, video.getWidth(), video.getHeight());
-
-        cl->updateBuf[cl->ublen++] = (char)(rfbTightJpeg << 4);
-        rfbSendCompressedDataTight(cl, data, video.getFrameSize());
-#endif
-
-        if (cl->enableLastRectEncoding)
-        {
-            rfbSendLastRectMarker(cl);
-        }
-
-        rfbSendUpdateBuf(cl);
+        if (cd->needUpdate)
+            anyClientNeedUpdate = true;
     }
 
     rfbReleaseClientIterator(it);
+
+    if (!anyClientSkipFrame && anyClientNeedUpdate)
+    {
+        unsigned int x, y, w, h, clipcount;
+
+        if (!data)
+        {
+            video.getFrame();
+            data = video.getData();
+            if(!data)
+                return;
+        }
+
+        if (FullframeCounter > 0)
+            FullframeCounter--;
+
+        if (FullframeCounter == 0)
+            video.setCompareMode(true);
+
+        clipcount = video.getClip(&x, &y, &w, &h);
+        if (clipcount <= 0)
+            return;
+
+        // video.getFrame() may get the differences compared with last frame
+        // so that all clients need to be updated simultaneously for synchronization
+        it = rfbGetClientIterator(server);
+        while ((cl = rfbClientIteratorNext(it)))
+        {
+            ClientData* cd = (ClientData*)cl->clientData;
+            rfbFramebufferUpdateMsg* fu = (rfbFramebufferUpdateMsg*)cl->updateBuf;
+
+            cd->needUpdate = false;
+
+            if (cl->enableLastRectEncoding)
+            {
+                fu->nRects = 0xFFFF;
+            }
+            else
+            {
+                fu->nRects = Swap16IfLE(clipcount);
+            }
+
+            fu->type = rfbFramebufferUpdate;
+            cl->ublen = sz_rfbFramebufferUpdateMsg;
+            rfbSendUpdateBuf(cl);
+
+            rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
+
+            if (cl->enableLastRectEncoding)
+            {
+                rfbSendLastRectMarker(cl);
+            }
+
+            rfbSendUpdateBuf(cl);
+
+        }
+
+        rfbReleaseClientIterator(it);
+    }
 }
 
 void Server::clientFramebufferUpdateRequest(
@@ -275,6 +255,7 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
     cl->preferredEncoding = rfbEncodingHextile;
     server->video.setCompareMode(false);
+    server->FullframeCounter = 5;
 
     if (!server->numClients++)
     {
