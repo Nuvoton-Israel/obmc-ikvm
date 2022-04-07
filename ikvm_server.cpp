@@ -37,14 +37,7 @@ Server::Server(const Args& args, Input& i, Video& v) :
     framebuffer.resize(
         video.getHeight() * video.getWidth() * Video::bytesPerPixel, 0);
 
-    format = &server->serverFormat;
-
-    format->redMax = 31;
-    format->greenMax = 63;
-    format->blueMax = 31;
-    format->redShift = 11;
-    format->greenShift = 5;
-    format->blueShift = 0;
+    rfbNuInitRfbFormat(server);
 
     server->screenData = this;
     server->desktopName = "OpenBMC IKVM";
@@ -55,7 +48,9 @@ Server::Server(const Args& args, Input& i, Video& v) :
     server->cursor->xhot = 1;
     server->cursor->yhot = 1;
 
+#if 0 // remove the limitation of localhost connect so that we can test by VNC Viewer
     rfbStringToAddr(&ip[0], &server->listenInterface);
+#endif
 
     rfbInitServer(server);
 
@@ -99,6 +94,27 @@ void Server::run()
     }
 }
 
+ rfbBool Server::rfbSendCompressedDataHextile(rfbClientPtr cl, char *buf,
+                                    int compressedLen)
+ {
+     int i, portionLen;
+     portionLen = UPDATE_BUF_SIZE;
+
+     for (i = 0; i < compressedLen; i += portionLen) {
+         if (i + portionLen > compressedLen) {
+             portionLen = compressedLen - i;
+         }
+         if (cl->ublen + portionLen > UPDATE_BUF_SIZE) {
+             if (!rfbSendUpdateBuf(cl))
+                 return FALSE;
+         }
+         memcpy(&cl->updateBuf[cl->ublen], &buf[i], portionLen);
+         cl->ublen += portionLen;
+     }
+
+     return TRUE;
+ }
+
 void Server::sendFrame()
 {
     char* data = nullptr;
@@ -107,6 +123,7 @@ void Server::sendFrame()
 #if 0
     int64_t frame_crc = -1;
 #endif
+
     if (pendingResize)
     {
         return;
@@ -168,6 +185,7 @@ void Server::sendFrame()
             cd->last_crc = frame_crc;
         }
 #endif
+
         if (server->numClients == 1) {
             if (FullframeCounter > 0)
                 FullframeCounter--;
@@ -194,12 +212,8 @@ void Server::sendFrame()
         fu->type = rfbFramebufferUpdate;
         cl->ublen = sz_rfbFramebufferUpdateMsg;
         rfbSendUpdateBuf(cl);
+        rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
 
-        cl->scaledScreen->frameBuffer = data;
-
-        do {
-            rfbSendRectEncodingHextile(cl, x, y, w, h);
-        } while (video.getClip(&x, &y, &w, &h) > 0);
 #if 0
         cl->tightEncoding = rfbEncodingTight;
         rfbSendTightHeader(cl, 0, 0, video.getWidth(), video.getHeight());
@@ -207,6 +221,7 @@ void Server::sendFrame()
         cl->updateBuf[cl->ublen++] = (char)(rfbTightJpeg << 4);
         rfbSendCompressedDataTight(cl, data, video.getFrameSize());
 #endif
+
         if (cl->enableLastRectEncoding)
         {
             rfbSendLastRectMarker(cl);
@@ -271,72 +286,15 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
     return RFB_CLIENT_ACCEPT;
 }
 
-
-void rfbNuInitRfbFormat(rfbScreenInfoPtr screen)
+void Server::rfbNuInitRfbFormat(rfbScreenInfoPtr screen)
 {
     rfbPixelFormat *format = &screen->serverFormat;
-
-    screen->colourMap.count = 0;
-    screen->colourMap.is16 = 0;
-    screen->colourMap.data.bytes = NULL;
-    format->bitsPerPixel = screen->bitsPerPixel;
-    format->depth = screen->depth;
-    format->bigEndian = FALSE;
-    format->trueColour = TRUE;
     format->redMax = 31;
     format->greenMax = 63;
     format->blueMax = 31;
     format->redShift = 11;
     format->greenShift = 5;
     format->blueShift = 0;
-}
-
-void rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char *framebuffer,
-						 int width, int height,
-						 int bitsPerSample, int samplesPerPixel,
-						 int bytesPerPixel)
-{
-	rfbClientIteratorPtr iterator;
-	rfbClientPtr cl;
-
-	/* Update information in the screenInfo structure */
-
-	if (width & 3)
-		rfbErr("WARNING: New width (%d) is not a multiple of 4.\n", width);
-
-	screen->width = width;
-	screen->height = height;
-	screen->bitsPerPixel = screen->depth = 8 * bytesPerPixel;
-	screen->paddedWidthInBytes = width * bytesPerPixel;
-
-	rfbNuInitRfbFormat(screen);
-
-	screen->frameBuffer = framebuffer;
-
-	/* Adjust pointer position if necessary */
-
-	if (screen->cursorX >= width)
-		screen->cursorX = width - 1;
-
-	if (screen->cursorY >= height)
-		screen->cursorY = height - 1;
-
-	/* For each client: */
-	iterator = rfbGetClientIterator(screen);
-	while ((cl = rfbClientIteratorNext(iterator)) != NULL)
-	{
-		/* Mark the screen contents as changed, and schedule sending
-	NewFBSize message if supported by this client. */
-
-		LOCK(cl->updateMutex);
-
-		if (cl->useNewFBSize)
-			cl->newFBSizePending = TRUE;
-
-		TSIGNAL(cl->updateCond);
-		UNLOCK(cl->updateMutex);
-	}
-	rfbReleaseClientIterator(iterator);
 }
 
 void Server::doResize()
@@ -347,9 +305,12 @@ void Server::doResize()
     framebuffer.resize(
         video.getHeight() * video.getWidth() * Video::bytesPerPixel, 0);
 
-    rfbNuNewFramebuffer(server, framebuffer.data(), video.getWidth(),
+    rfbNewFramebuffer(server, framebuffer.data(), video.getWidth(),
                       video.getHeight(), Video::bitsPerSample,
                       Video::samplesPerPixel, Video::bytesPerPixel);
+
+    rfbNuInitRfbFormat(server);
+
     rfbMarkRectAsModified(server, 0, 0, video.getWidth(), video.getHeight());
 
     it = rfbGetClientIterator(server);
