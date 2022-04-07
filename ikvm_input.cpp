@@ -211,6 +211,9 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
     Server* server = (Server*)cl->screen->screenData;
     const Video& video = server->getVideo();
 
+    cl->screen->cursorX = cl->cursorX = x;
+    cl->screen->cursorY = cl->cursorY = y;
+
     if (input->pointerFd < 0)
     {
         return;

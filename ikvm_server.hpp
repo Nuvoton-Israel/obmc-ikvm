@@ -177,6 +177,11 @@ class Server
                                          "        o           ";
 
     int FullframeCounter;
+
+    rfbBool rfbSendCompressedDataHextile(rfbClientPtr cl, char *buf,
+                                    int compressedLen);
+
+    void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
 };
 
 } // namespace ikvm
