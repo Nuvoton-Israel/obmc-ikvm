@@ -111,7 +111,6 @@ class Server
 
     /* @brief Performs the resize operation on the framebuffer */
     void doResize();
-    int rcvdCount;
     /* @brief Boolean to indicate if a resize operation is on-going */
     bool pendingResize;
     /* @brief Number of frames handled since a client connected */
@@ -128,7 +127,6 @@ class Server
     Video& video;
     /* @brief Default framebuffer storage */
     std::vector<char> framebuffer;
-    rfbPixelFormat *format;
     /* @brief Cursor bitmap width */
     static constexpr int cursorWidth = 20;
     /* @brief Cursor bitmap height */
@@ -176,7 +174,8 @@ class Server
                                          "       oxo          "
                                          "        o           ";
 
-    int FullframeCounter;
+    static constexpr int FULL_FRAME_COUNT = 5;
+    int compareModeCounter;
 
     rfbBool rfbSendCompressedDataHextile(rfbClientPtr cl, char *buf,
                                     int compressedLen);

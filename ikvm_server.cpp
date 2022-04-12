@@ -16,7 +16,8 @@ using namespace phosphor::logging;
 using namespace sdbusplus::xyz::openbmc_project::Common::Error;
 
 Server::Server(const Args& args, Input& i, Video& v) :
-    pendingResize(false), frameCounter(0), numClients(0), input(i), video(v), FullframeCounter(5)
+    pendingResize(false), frameCounter(0), numClients(0), input(i), video(v),
+    compareModeCounter(FULL_FRAME_COUNT)
 {
     std::string ip("localhost");
     const Args::CommandLine& commandLine = args.getCommandLine();
@@ -122,6 +123,7 @@ void Server::sendFrame()
     rfbClientPtr cl;
     bool anyClientNeedUpdate = false;
     bool anyClientSkipFrame = false;
+    unsigned int x, y, w, h, clipCount;
 #if 0
     int64_t frame_crc = -1;
 #endif
@@ -155,24 +157,20 @@ void Server::sendFrame()
 
     if (!anyClientSkipFrame && anyClientNeedUpdate)
     {
-        unsigned int x, y, w, h, clipcount;
+        video.getFrame();
+        data = video.getData();
 
         if (!data)
+            return;
+
+        if (compareModeCounter && --compareModeCounter == 0)
         {
-            video.getFrame();
-            data = video.getData();
-            if(!data)
-                return;
+            video.setCompareMode(true);
         }
 
-        if (FullframeCounter > 0)
-            FullframeCounter--;
+        clipCount = video.getClip(&x, &y, &w, &h);
 
-        if (FullframeCounter == 0)
-            video.setCompareMode(true);
-
-        clipcount = video.getClip(&x, &y, &w, &h);
-        if (clipcount <= 0)
+        if (!clipCount)
             return;
 
         // video.getFrame() may get the differences compared with last frame
@@ -191,7 +189,7 @@ void Server::sendFrame()
             }
             else
             {
-                fu->nRects = Swap16IfLE(clipcount);
+                fu->nRects = Swap16IfLE(clipCount);
             }
 
             fu->type = rfbFramebufferUpdate;
@@ -239,10 +237,6 @@ void Server::clientGone(rfbClientPtr cl)
         rfbMarkRectAsModified(server->server, 0, 0, server->video.getWidth(),
                               server->video.getHeight());
     }
-    else if (server->numClients == 1)
-    {
-        server->FullframeCounter = 5;
-    }
 }
 
 enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
@@ -254,8 +248,9 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
     cl->clientGoneHook = clientGone;
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
     cl->preferredEncoding = rfbEncodingHextile;
+
     server->video.setCompareMode(false);
-    server->FullframeCounter = 5;
+    server->compareModeCounter = FULL_FRAME_COUNT;
 
     if (!server->numClients++)
     {
@@ -270,6 +265,7 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
 void Server::rfbNuInitRfbFormat(rfbScreenInfoPtr screen)
 {
     rfbPixelFormat *format = &screen->serverFormat;
+
     format->redMax = 31;
     format->greenMax = 63;
     format->blueMax = 31;
@@ -311,7 +307,8 @@ void Server::doResize()
 
     rfbReleaseClientIterator(it);
 
-    FullframeCounter = 5;
+    video.setCompareMode(false);
+    compareModeCounter = FULL_FRAME_COUNT;
 }
 
 } // namespace ikvm
