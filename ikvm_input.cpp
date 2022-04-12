@@ -219,7 +219,6 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
     it = rfbGetClientIterator(screenPtr);
     while ((clientPtr = rfbClientIteratorNext(it)))
     {
-
         clientPtr->screen->cursorX = clientPtr->cursorX = x;
         clientPtr->screen->cursorY = clientPtr->cursorY = y;
     }

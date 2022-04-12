@@ -41,36 +41,32 @@ Video::~Video()
     stop();
 }
 
-int Video::setCompareMode(bool enable)
+void Video::setCompareMode(bool enable)
 {
-    int rc;
+    int rc(0);
     v4l2_control control;
 
     if (fd < 0)
     {
-        return 0;
+        return;
     }
 
-    if (enable)
-        control.value = V4L2_DETECT_MD_MODE_REGION_GRID;
-    else
-        control.value = V4L2_DETECT_MD_MODE_GLOBAL;
-
+    control.value = enable ? V4L2_DETECT_MD_MODE_REGION_GRID :
+                    V4L2_DETECT_MD_MODE_GLOBAL;
     control.id = V4L2_CID_DETECT_MD_MODE;
 
-    rc = ioctl(fd, VIDIOC_S_CTRL , &control);
-    if (rc < 0) {
+    rc = ioctl(fd, VIDIOC_S_CTRL, &control);
+    if (rc < 0)
+    {
         log<level::ERR>("Failed to set control",
             entry("ERROR=%s", strerror(errno)));
-        return -1;
     }
-
-    return 0;
 }
 
-unsigned int Video::getClip(unsigned int *x, unsigned int *y, unsigned int *w, unsigned int *h)
+unsigned int Video::getClip(unsigned int *x, unsigned int *y, unsigned int *w,
+                            unsigned int *h)
 {
-    int rc;
+    int rc(0);
     v4l2_format fmt;
     v4l2_window *win;
 
@@ -81,9 +77,12 @@ unsigned int Video::getClip(unsigned int *x, unsigned int *y, unsigned int *w, u
 
     fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
     rc = ioctl(fd, VIDIOC_G_FMT, &fmt);
-    if (rc < 0) {
+    if (rc < 0)
+    {
         log<level::ERR>("Failed to get clip count",
             entry("ERROR=%s", strerror(errno)));
+
+        return 0;
     }
 
     win = &fmt.fmt.win;
