@@ -17,7 +17,7 @@ using namespace sdbusplus::xyz::openbmc_project::Common::Error;
 
 Server::Server(const Args& args, Input& i, Video& v) :
     pendingResize(false), frameCounter(0), numClients(0), input(i), video(v),
-    compareModeCounter(FULL_FRAME_COUNT)
+    compareModeCounter(FULL_FRAME_COUNT), fpsCounter(0)
 {
     std::string ip("localhost");
     const Args::CommandLine& commandLine = args.getCommandLine();
@@ -208,6 +208,7 @@ void Server::sendFrame()
         }
 
         rfbReleaseClientIterator(it);
+        dumpFps();
     }
 }
 
@@ -309,6 +310,30 @@ void Server::doResize()
 
     video.setCompareMode(false);
     compareModeCounter = FULL_FRAME_COUNT;
+}
+
+void Server::dumpFps()
+{
+    timespec end;
+
+    if(!fpsCounter)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        fpsCounter++;
+        return;
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    if((end.tv_sec - start.tv_sec) >= FPS_DUMP_RATE)
+    {
+        rfbLog("Sent %d frames in %ds, fps: %d\n", fpsCounter, FPS_DUMP_RATE, fpsCounter / FPS_DUMP_RATE);
+        fpsCounter = 0;
+    }
+    else
+    {
+        fpsCounter++;
+    }
 }
 
 } // namespace ikvm
