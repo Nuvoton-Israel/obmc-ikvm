@@ -1,1 +1,0 @@
-option('keyevent', type: 'feature', description: 'Enabled Keyboard Event', value: 'disabled')
