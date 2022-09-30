@@ -96,8 +96,8 @@ class Server
      * @param[in] furMsg - Pointer of the FUR message
      */
     static void
-    clientFramebufferUpdateRequest(rfbClientPtr cl,
-                                   rfbFramebufferUpdateRequestMsg *furMsg);
+        clientFramebufferUpdateRequest(rfbClientPtr cl,
+                                       rfbFramebufferUpdateRequestMsg* furMsg);
     /*
      * @brief Handler for a client disconnecting
      *

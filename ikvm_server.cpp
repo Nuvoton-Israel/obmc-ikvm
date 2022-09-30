@@ -2,12 +2,11 @@
 
 #include <rfb/rfbproto.h>
 
+#include <boost/crc.hpp>
 #include <phosphor-logging/elog-errors.hpp>
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/log.hpp>
 #include <xyz/openbmc_project/Common/error.hpp>
-
-#include <boost/crc.hpp>
 
 namespace ikvm
 {
@@ -213,9 +212,9 @@ void Server::sendFrame()
 }
 
 void Server::clientFramebufferUpdateRequest(
-    rfbClientPtr cl, rfbFramebufferUpdateRequestMsg *furMsg)
+    rfbClientPtr cl, rfbFramebufferUpdateRequestMsg* furMsg)
 {
-    ClientData *cd = (ClientData *)cl->clientData;
+    ClientData* cd = (ClientData*)cl->clientData;
 
     if (!cd)
         return;

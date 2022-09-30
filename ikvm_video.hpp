@@ -23,7 +23,7 @@ class Video
      * @param[in] input - Reference to the Input object
      * @param[in] fr    - desired frame rate of the video
      */
-    Video(const std::string& p, Input& input, int fr = 30);
+    Video(const std::string& p, Input& input, int fr = 30, int sub = 0);
     ~Video();
     Video(const Video&) = default;
     Video& operator=(const Video&) = default;
@@ -93,6 +93,24 @@ class Video
     {
         return width;
     }
+    /*
+     * @brief Gets the subsampling of the video frame
+     *
+     * @return Value of the subsampling of video frame, 1:420/0:444
+     */
+    inline int getSubsampling() const
+    {
+        return subSampling;
+    }
+    /*
+     * @brief Sets the subsampling of the video frame
+     *
+     * @return Value of the subsampling of video frame, 1:420/0:444
+     */
+    inline void setSubsampling(int _sub)
+    {
+        subSampling = _sub;
+    }
 
     unsigned int getClip(unsigned int *x, unsigned int *y, unsigned int *w,
                          unsigned int *h);
@@ -115,8 +133,7 @@ class Video
     struct Buffer
     {
         Buffer() : data(nullptr), queued(false), payload(0), size(0)
-        {
-        }
+        {}
         ~Buffer() = default;
         Buffer(const Buffer&) = default;
         Buffer& operator=(const Buffer&) = default;
@@ -146,6 +163,8 @@ class Video
     size_t height;
     /* @brief Width in pixels of the video frame */
     size_t width;
+    /* @brief jpeg's subsampling, 1:420/0:444 */
+    int subSampling;
     /* @brief Reference to the Input object */
     Input& input;
     /* @brief Path to the V4L2 video device */

@@ -25,8 +25,7 @@ class Args
          * @param[in] v - Array of arguments
          */
         CommandLine(int c, char** v) : argc(c), argv(v)
-        {
-        }
+        {}
         ~CommandLine() = default;
         CommandLine(const CommandLine&) = default;
         CommandLine& operator=(const CommandLine&) = default;
@@ -69,6 +68,16 @@ class Args
     inline int getFrameRate() const
     {
         return frameRate;
+    }
+
+    /*
+     * @brief Get the video subsampling
+     *
+     * @return Value of the video subsampling
+     */
+    inline int getSubsampling() const
+    {
+        return subsampling;
     }
 
     /*
@@ -120,6 +129,8 @@ class Args
      *        stream
      */
     int frameRate;
+    /* @brief Desired subsampling (0: 444, 1: 420) */
+    int subsampling;
     /* @brief Path to the USB keyboard device */
     std::string keyboardPath;
     /* @brief Path to the USB mouse device */
