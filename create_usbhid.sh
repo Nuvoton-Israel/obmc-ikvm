@@ -20,7 +20,7 @@ fi
 create_hid() {
     # create gadget
     mkdir "${hid_conf_directory}"
-    cd "${hid_conf_directory}"
+    cd "${hid_conf_directory}" || exit 1
 
     # add basic information
     echo 0x0100 > bcdDevice
@@ -153,7 +153,7 @@ original_directory="$(pwd)"
 if [ ! -e "${hid_conf_directory}" ]; then
     create_hid
 else
-    cd "${hid_conf_directory}"
+    cd "${hid_conf_directory}" || exit 1
 fi
 
 if [ "$1" = "connect" ]; then
