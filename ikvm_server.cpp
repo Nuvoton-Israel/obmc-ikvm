@@ -16,7 +16,7 @@ using namespace sdbusplus::xyz::openbmc_project::Common::Error;
 
 Server::Server(const Args& args, Input& i, Video& v) :
     pendingResize(false), frameCounter(0), numClients(0), input(i), video(v),
-    compareModeCounter(FULL_FRAME_COUNT), fpsCounter(0)
+    captureModeCounter(COMPLETE_FRAME_COUNT), fpsCounter(0)
 {
     std::string ip("localhost");
     const Args::CommandLine& commandLine = args.getCommandLine();
@@ -122,7 +122,7 @@ void Server::sendFrame()
     rfbClientPtr cl;
     bool anyClientNeedUpdate = false;
     bool anyClientSkipFrame = false;
-    unsigned int x, y, w, h, clipCount;
+    unsigned int rectCount;
 #if 0
     int64_t frame_crc = -1;
 #endif
@@ -162,14 +162,14 @@ void Server::sendFrame()
         if (!data)
             return;
 
-        if (compareModeCounter && --compareModeCounter == 0)
+        if (captureModeCounter && --captureModeCounter == 0)
         {
-            video.setCompareMode(true);
+            video.setCaptureMode(false);
         }
 
-        clipCount = video.getClip(&x, &y, &w, &h);
+        rectCount = video.getRectCount();
 
-        if (!clipCount)
+        if (!rectCount)
             return;
 
         // video.getFrame() may get the differences compared with last frame
@@ -188,7 +188,7 @@ void Server::sendFrame()
             }
             else
             {
-                fu->nRects = Swap16IfLE(clipCount);
+                fu->nRects = Swap16IfLE(rectCount);
             }
 
             fu->type = rfbFramebufferUpdate;
@@ -249,8 +249,8 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
     cl->preferredEncoding = rfbEncodingHextile;
 
-    server->video.setCompareMode(false);
-    server->compareModeCounter = FULL_FRAME_COUNT;
+    server->video.setCaptureMode(true);
+    server->captureModeCounter = COMPLETE_FRAME_COUNT;
 
     if (!server->numClients++)
     {
@@ -307,8 +307,8 @@ void Server::doResize()
 
     rfbReleaseClientIterator(it);
 
-    video.setCompareMode(false);
-    compareModeCounter = FULL_FRAME_COUNT;
+    video.setCaptureMode(true);
+    captureModeCounter = COMPLETE_FRAME_COUNT;
 }
 
 void Server::dumpFps()
