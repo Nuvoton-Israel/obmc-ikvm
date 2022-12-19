@@ -176,8 +176,8 @@ class Server
                                          "       oxo          "
                                          "        o           ";
 
-    static constexpr int FULL_FRAME_COUNT = 5;
-    int compareModeCounter;
+    static constexpr int COMPLETE_FRAME_COUNT = 5;
+    int captureModeCounter;
 
     /* Dump FPS every 10 seconds */
     static constexpr int FPS_DUMP_RATE = 10;

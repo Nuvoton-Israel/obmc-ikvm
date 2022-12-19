@@ -1,4 +1,5 @@
 #include "ikvm_video.hpp"
+#include "npcm-video.h"
 
 #include <err.h>
 #include <errno.h>
@@ -41,7 +42,7 @@ Video::~Video()
     stop();
 }
 
-void Video::setCompareMode(bool enable)
+void Video::setCaptureMode(bool completeFrame)
 {
     int rc(0);
     v4l2_control control;
@@ -51,9 +52,9 @@ void Video::setCompareMode(bool enable)
         return;
     }
 
-    control.value = enable ? V4L2_DETECT_MD_MODE_REGION_GRID :
-                    V4L2_DETECT_MD_MODE_GLOBAL;
-    control.id = V4L2_CID_DETECT_MD_MODE;
+    control.value = completeFrame ? V4L2_NPCM_CAPTURE_MODE_COMPLETE :
+                    V4L2_NPCM_CAPTURE_MODE_DIFF;
+    control.id = V4L2_CID_NPCM_CAPTURE_MODE;
 
     rc = ioctl(fd, VIDIOC_S_CTRL, &control);
     if (rc < 0)
@@ -63,35 +64,28 @@ void Video::setCompareMode(bool enable)
     }
 }
 
-unsigned int Video::getClip(unsigned int *x, unsigned int *y, unsigned int *w,
-                            unsigned int *h)
+unsigned int Video::getRectCount()
 {
     int rc(0);
-    v4l2_format fmt;
-    v4l2_window *win;
+    v4l2_control control;
 
     if (fd < 0)
     {
         return 0;
     }
 
-    fmt.type = V4L2_BUF_TYPE_VIDEO_OVERLAY;
-    rc = ioctl(fd, VIDIOC_G_FMT, &fmt);
+    control.id = V4L2_CID_NPCM_RECT_COUNT;
+
+    rc = ioctl(fd, VIDIOC_G_CTRL, &control);
     if (rc < 0)
     {
-        log<level::ERR>("Failed to get clip count",
+        log<level::ERR>("Failed to get control",
             entry("ERROR=%s", strerror(errno)));
 
-        return 0;
+	return 0;
     }
 
-    win = &fmt.fmt.win;
-    memcpy(x, &win->w.left, sizeof(unsigned int));
-    memcpy(y, &win->w.top, sizeof(unsigned int));
-    memcpy(w, &win->w.width, sizeof(unsigned int));
-    memcpy(h, &win->w.height, sizeof(unsigned int));
-
-    return win->clipcount;
+    return control.value;
 }
 
 char* Video::getData()
