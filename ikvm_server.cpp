@@ -1,5 +1,6 @@
 #include "ikvm_server.hpp"
 
+#include <linux/videodev2.h>
 #include <rfb/rfbproto.h>
 
 #include <boost/crc.hpp>
@@ -115,6 +116,33 @@ void Server::run()
      return TRUE;
  }
 
+void Server::checkClientFormat()
+{
+    rfbClientIteratorPtr it;
+    rfbClientPtr cl;
+    uint32_t format;
+
+    it = rfbGetClientIterator(server);
+    cl = rfbClientIteratorNext(it);
+
+    // Use HW Hextile if client prefers Hextile encoding and supports 16bpp.
+    // Otherwise, notify driver to return RGB565 raw data and use SW encoding.
+    if (cl->preferredEncoding == rfbEncodingHextile && cl->format.bitsPerPixel == 16)
+    {
+        format = 0x4C545848; /* V4L2_PIX_FMT_HEXTILE Four-character-code */
+    }
+    else
+    {
+        format = V4L2_PIX_FMT_RGB565;
+    }
+
+    if (video.getPixelformat() != format)
+    {
+        video.setPixelformat(format);
+        video.restart();
+    }
+}
+
 void Server::sendFrame()
 {
     char* data = nullptr;
@@ -191,19 +219,31 @@ void Server::sendFrame()
                 fu->nRects = Swap16IfLE(rectCount);
             }
 
-            fu->type = rfbFramebufferUpdate;
-            cl->ublen = sz_rfbFramebufferUpdateMsg;
-            rfbSendUpdateBuf(cl);
-
-            rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
-
-            if (cl->enableLastRectEncoding)
+            switch (video.getPixelformat())
             {
-                rfbSendLastRectMarker(cl);
+                case V4L2_PIX_FMT_RGB565:
+                    framebuffer.assign(data, data + video.getFrameSize());
+                    rfbMarkRectAsModified(server, 0, 0, video.getWidth(),
+                                          video.getHeight());
+                    break;
+
+                case 0x4C545848: /* V4L2_PIX_FMT_HEXTILE Four-character-code */
+                    fu->type = rfbFramebufferUpdate;
+                    cl->ublen = sz_rfbFramebufferUpdateMsg;
+                    rfbSendUpdateBuf(cl);
+
+                    rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
+
+                    if (cl->enableLastRectEncoding)
+                    {
+                        rfbSendLastRectMarker(cl);
+                    }
+                    rfbSendUpdateBuf(cl);
+                    break;
+
+                default:
+                    break;
             }
-
-            rfbSendUpdateBuf(cl);
-
         }
 
         rfbReleaseClientIterator(it);
@@ -247,8 +287,6 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
         new ClientData(server->video.getFrameRate(), &server->input);
     cl->clientGoneHook = clientGone;
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
-    cl->preferredEncoding = rfbEncodingHextile;
-
     server->video.setCaptureMode(true);
     server->captureModeCounter = COMPLETE_FRAME_COUNT;
 
@@ -274,6 +312,51 @@ void Server::rfbNuInitRfbFormat(rfbScreenInfoPtr screen)
     format->blueShift = 0;
 }
 
+void Server::rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char* framebuffer,
+                                 int width, int height, int bitsPerSample,
+                                 int samplesPerPixel, int bytesPerPixel)
+{
+    rfbClientIteratorPtr iterator;
+    rfbClientPtr cl;
+
+    // Update information in the screenInfo structure
+    if (width & 3)
+        rfbErr("WARNING: New width (%d) is not a multiple of 4.\n", width);
+
+    screen->width = width;
+    screen->height = height;
+    screen->bitsPerPixel = screen->depth = 8 * bytesPerPixel;
+    screen->paddedWidthInBytes = width * bytesPerPixel;
+
+    rfbNuInitRfbFormat(screen);
+
+    screen->frameBuffer = framebuffer;
+
+    // Adjust pointer position if necessary
+    if (screen->cursorX >= width)
+        screen->cursorX = width - 1;
+
+    if (screen->cursorY >= height)
+        screen->cursorY = height - 1;
+
+    // For each client
+    iterator = rfbGetClientIterator(screen);
+    while ((cl = rfbClientIteratorNext(iterator)) != NULL)
+    {
+        /* Mark the screen contents as changed, and schedule sending
+           NewFBSize message if supported by this client. */
+
+        LOCK(cl->updateMutex);
+
+        if (cl->useNewFBSize)
+            cl->newFBSizePending = TRUE;
+
+        TSIGNAL(cl->updateCond);
+        UNLOCK(cl->updateMutex);
+    }
+    rfbReleaseClientIterator(iterator);
+}
+
 void Server::doResize()
 {
     rfbClientIteratorPtr it;
@@ -282,11 +365,9 @@ void Server::doResize()
     framebuffer.resize(
         video.getHeight() * video.getWidth() * Video::bytesPerPixel, 0);
 
-    rfbNewFramebuffer(server, framebuffer.data(), video.getWidth(),
-                      video.getHeight(), Video::bitsPerSample,
-                      Video::samplesPerPixel, Video::bytesPerPixel);
-
-    rfbNuInitRfbFormat(server);
+    rfbNuNewFramebuffer(server, framebuffer.data(), video.getWidth(),
+                        video.getHeight(), Video::bitsPerSample,
+                        Video::samplesPerPixel, Video::bytesPerPixel);
 
     rfbMarkRectAsModified(server, 0, 0, video.getWidth(), video.getHeight());
 

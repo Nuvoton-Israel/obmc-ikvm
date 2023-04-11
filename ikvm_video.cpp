@@ -468,6 +468,15 @@ void Video::start()
 
     memset(&fmt, 0, sizeof(v4l2_format));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.pixelformat = pixelformat;
+
+    rc = ioctl(fd, VIDIOC_S_FMT, &fmt);
+    if (rc < 0)
+    {
+        log<level::ERR>("Failed to set format",
+                        entry("ERROR=%s", strerror(errno)));
+    }
+
     rc = ioctl(fd, VIDIOC_G_FMT, &fmt);
     if (rc < 0)
     {
@@ -503,6 +512,9 @@ void Video::start()
 
     height = fmt.fmt.pix.height;
     width = fmt.fmt.pix.width;
+
+    pixelformat = fmt.fmt.pix.pixelformat;
+    rfbLog("pixelformat fourcc = %x\n", pixelformat);
 
     resize();
 

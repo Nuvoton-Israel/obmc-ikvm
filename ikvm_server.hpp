@@ -86,6 +86,7 @@ class Server
         return video;
     }
 
+    void checkClientFormat();
     void dumpFps();
 
   private:
@@ -188,6 +189,9 @@ class Server
                                     int compressedLen);
 
     void rfbNuInitRfbFormat(rfbScreenInfoPtr screen);
+    void rfbNuNewFramebuffer(rfbScreenInfoPtr screen, char* framebuffer,
+                             int width, int height, int bitsPerSample,
+                             int samplesPerPixel, int bytesPerPixel);
 };
 
 } // namespace ikvm
