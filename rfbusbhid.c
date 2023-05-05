@@ -23,41 +23,42 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include "rfbnpcm750.h"
 #include "rfbusbhid.h"
 
-#define IDVENDOR "/sys/kernel/config/usb_gadget/hid/idVendor"
-#define IDPRODUCT "/sys/kernel/config/usb_gadget/hid/idProduct"
-#define BCDDEVICE "/sys/kernel/config/usb_gadget/hid/bcdDevice"
-#define BCDUSB "/sys/kernel/config/usb_gadget/hid/bcdUSB"
-#define BMAXPACKERSIZE0 "/sys/kernel/config/usb_gadget/hid/bMaxPacketSize0"
-#define SERIALNUMBER "/sys/kernel/config/usb_gadget/hid/strings/0x409/serialnumber"
-#define MANUFACTURER "/sys/kernel/config/usb_gadget/hid/strings/0x409/manufacturer"
-#define PRODUCT "/sys/kernel/config/usb_gadget/hid/strings/0x409/product"
-#define ATTRIBUTES "/sys/kernel/config/usb_gadget/hid/configs/c.1/bmAttributes"
-#define MAXPOWER "/sys/kernel/config/usb_gadget/hid/configs/c.1/MaxPower"
-#define USB0 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0"
-#define USB1 "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1"
-#define CONF0 "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb0"
-#define CONF1 "/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb1"
-#define K_PROROCOL "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/protocol"
-#define K_SUBCLASS "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/subclass"
-#define K_REPORTLENGTH "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_length"
-#define K_REPORTDESC "/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_desc"
-#define M_PROROCOL "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/protocol"
-#define M_SUBCLASS "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/subclass"
-#define M_REPORTLENGTH "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_length"
-#define M_REPORTDESC "/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_desc"
-#define CONFIGURATION "/sys/kernel/config/usb_gadget/hid/configs/c.1/strings/0x409/configuration"
-#define UDC "/sys/kernel/config/usb_gadget/hid/UDC"
+#define IDVENDOR	"/sys/kernel/config/usb_gadget/hid/idVendor"
+#define IDPRODUCT	"/sys/kernel/config/usb_gadget/hid/idProduct"
+#define BCDDEVICE	"/sys/kernel/config/usb_gadget/hid/bcdDevice"
+#define BCDUSB		"/sys/kernel/config/usb_gadget/hid/bcdUSB"
+#define BMAXPACKERSIZE0	"/sys/kernel/config/usb_gadget/hid/bMaxPacketSize0"
+#define SERIALNUMBER	"/sys/kernel/config/usb_gadget/hid/strings/0x409/serialnumber"
+#define MANUFACTURER	"/sys/kernel/config/usb_gadget/hid/strings/0x409/manufacturer"
+#define PRODUCT		"/sys/kernel/config/usb_gadget/hid/strings/0x409/product"
+#define ATTRIBUTES	"/sys/kernel/config/usb_gadget/hid/configs/c.1/bmAttributes"
+#define MAXPOWER	"/sys/kernel/config/usb_gadget/hid/configs/c.1/MaxPower"
+#define USB0		"/sys/kernel/config/usb_gadget/hid/functions/hid.usb0"
+#define USB1		"/sys/kernel/config/usb_gadget/hid/functions/hid.usb1"
+#define CONF0		"/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb0"
+#define CONF1		"/sys/kernel/config/usb_gadget/hid/configs/c.1/hid.usb1"
+#define K_PROROCOL	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/protocol"
+#define K_SUBCLASS	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/subclass"
+#define K_REPORTLENGTH	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_length"
+#define K_REPORTDESC	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb0/report_desc"
+#define M_PROROCOL	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/protocol"
+#define M_SUBCLASS	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/subclass"
+#define M_REPORTLENGTH	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_length"
+#define M_REPORTDESC	"/sys/kernel/config/usb_gadget/hid/functions/hid.usb1/report_desc"
+#define CONFIGURATION	"/sys/kernel/config/usb_gadget/hid/configs/c.1/strings/0x409/configuration"
+#define UDC		"/sys/kernel/config/usb_gadget/hid/UDC"
 
-#define MOUSE_ABS_RES 2032
-
-#define KB_DEV "/dev/hidg0"
-#define MS_DEV "/dev/hidg1"
-#define USB_DEV_NAME "f0830000.udc"
+#define MOUSE_ABS_RES		2032
+#define KB_DEV			"/dev/hidg0"
+#define MS_DEV			"/dev/hidg1"
+#define UDC_NAME		"f0830000.udc"
+#define UDC_NAME_FROM_KERNEL_6	"ci_hdrc.0"
 
 static int mouse_fd = -1;
 static int keyboard_fd = -1;
@@ -519,6 +520,8 @@ int hid_init(void)
     int nr_set = ARRAY_SIZE(_hid_init_desc);
     struct hid_init_desc *desc = _hid_init_desc;
     struct stat st = {0};
+    struct utsname uname_info;
+    int major_ver;
 
     if (stat("/sys/kernel/config/usb_gadget/hid", &st) == -1)
     {
@@ -544,7 +547,13 @@ int hid_init(void)
         printf("symlink error: %s ", strerror(errno));
     }
 
-    hid_f_write(UDC, USB_DEV_NAME, strlen(USB_DEV_NAME));
+    uname(&uname_info);
+    sscanf(uname_info.release, "%d.", &major_ver);
+
+    if (major_ver >= 6)
+        hid_f_write(UDC, UDC_NAME_FROM_KERNEL_6, strlen(UDC_NAME_FROM_KERNEL_6));
+    else
+        hid_f_write(UDC, UDC_NAME, strlen(UDC_NAME));
 
     keyboard_fd = open(KB_DEV, O_RDWR);
     if (keyboard_fd < 0) {
