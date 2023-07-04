@@ -183,8 +183,9 @@ void Video::getFrame()
 
 bool Video::needsResize()
 {
-    int rc;
+    int rc, fd_flags;
     v4l2_dv_timings timings;
+    v4l2_event evt;
 
     if (fd < 0)
     {
@@ -231,6 +232,24 @@ bool Video::needsResize()
 
         lastFrameIndex = -1;
         return true;
+    }
+
+    memset(&evt, 0, sizeof(v4l2_event));
+
+    // Switch to non-blocking mode for DQEVENT
+    fd_flags = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, fd_flags | O_NONBLOCK);
+
+    rc = ioctl(fd, VIDIOC_DQEVENT, &evt);
+    fcntl(fd, F_SETFL, fd_flags);
+
+    if (!rc)
+    {
+        if (evt.type == V4L2_EVENT_SOURCE_CHANGE &&
+            (evt.u.src_change.changes & V4L2_EVENT_SRC_CH_RESOLUTION)) {
+            rfbLog("Get V4L2_EVENT_SRC_CH_RESOLUTION\n");
+            return true;
+        }
     }
 
     return false;
@@ -425,6 +444,7 @@ void Video::start()
     v4l2_format fmt;
     v4l2_streamparm sparm;
     v4l2_control ctrl;
+    v4l2_event_subscription sub;
 
     if (fd >= 0)
     {
@@ -516,6 +536,16 @@ void Video::start()
     pixelformat = fmt.fmt.pix.pixelformat;
     rfbLog("pixelformat fourcc = %x\n", pixelformat);
 
+    memset(&sub, 0, sizeof(v4l2_event_subscription));
+    sub.type = V4L2_EVENT_SOURCE_CHANGE;
+
+    rc = ioctl(fd, VIDIOC_SUBSCRIBE_EVENT, &sub);
+    if (rc < 0)
+    {
+        log<level::WARNING>("Failed to subscribe event",
+                            entry("ERROR=%s", strerror(errno)));
+    }
+
     resize();
 
     if (oldHeight != height || oldWidth != width)
@@ -529,6 +559,7 @@ void Video::stop()
     int rc;
     unsigned int i;
     v4l2_buf_type type(V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    v4l2_event_subscription sub;
 
     if (fd < 0)
     {
@@ -536,6 +567,16 @@ void Video::stop()
     }
 
     lastFrameIndex = -1;
+
+    memset(&sub, 0, sizeof(v4l2_event_subscription));
+    sub.type = V4L2_EVENT_SOURCE_CHANGE;
+
+    rc = ioctl(fd, VIDIOC_UNSUBSCRIBE_EVENT, &sub);
+    if (rc < 0)
+    {
+        log<level::WARNING>("Failed to unsubscribe event",
+                            entry("ERROR=%s", strerror(errno)));
+    }
 
     rc = ioctl(fd, VIDIOC_STREAMOFF, &type);
     if (rc)
