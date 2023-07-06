@@ -488,7 +488,8 @@ void Video::start()
 
     memset(&fmt, 0, sizeof(v4l2_format));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.pixelformat = pixelformat;
+    fmt.fmt.pix.pixelformat = wantedPixelFormat;
+    rfbLog("Wanted pixelformat fourcc = %x\n", wantedPixelFormat);
 
     rc = ioctl(fd, VIDIOC_S_FMT, &fmt);
     if (rc < 0)
@@ -533,8 +534,8 @@ void Video::start()
     height = fmt.fmt.pix.height;
     width = fmt.fmt.pix.width;
 
-    pixelformat = fmt.fmt.pix.pixelformat;
-    rfbLog("pixelformat fourcc = %x\n", pixelformat);
+    pixelFormat = fmt.fmt.pix.pixelformat;
+    rfbLog("Actual pixelformat fourcc = %x\n", pixelFormat);
 
     memset(&sub, 0, sizeof(v4l2_event_subscription));
     sub.type = V4L2_EVENT_SOURCE_CHANGE;

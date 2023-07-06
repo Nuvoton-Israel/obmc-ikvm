@@ -85,13 +85,22 @@ class Video
         return height;
     }
     /*
-     * @brief Gets the pixel format of the video frame
+     * @brief Gets the actual pixel format of the video frame
      *
-     * @return Value of the pixel format of video frame
+     * @return Value of the actual pixel format of video frame
      */
-    inline uint32_t getPixelformat() const
+    inline uint32_t getPixelFormat() const
     {
-        return pixelformat;
+        return pixelFormat;
+    }
+    /*
+     * @brief Gets the pixel format that we want to use
+     *
+     * @return Value of the pixel format that we want to use
+     */
+    inline uint32_t getWantedPixelFormat() const
+    {
+        return wantedPixelFormat;
     }
     /*
      * @brief Gets the width of the video frame
@@ -125,9 +134,9 @@ class Video
 
     void setCaptureMode(bool completeFrame);
 
-    inline void setPixelformat(uint32_t format)
+    inline void setWantedPixelFormat(uint32_t format)
     {
-        pixelformat = format;
+        wantedPixelFormat = format;
     }
 
     /* @brief Number of bits per component of a pixel */
@@ -184,8 +193,10 @@ class Video
     const std::string path;
     /* @brief Streaming buffer storage */
     std::vector<Buffer> buffers;
-    /* @brief Pixel Format */
-    uint32_t pixelformat;
+    /* @brief Actual pixel format that driver used */
+    uint32_t pixelFormat;
+    /* @brief Pixel format that we want to use */
+    uint32_t wantedPixelFormat;
 };
 
 } // namespace ikvm
