@@ -136,9 +136,9 @@ void Server::checkClientFormat()
         format = V4L2_PIX_FMT_RGB565;
     }
 
-    if (video.getPixelformat() != format)
+    if (video.getWantedPixelFormat() != format)
     {
-        video.setPixelformat(format);
+        video.setWantedPixelFormat(format);
         video.restart();
     }
 }
@@ -219,7 +219,7 @@ void Server::sendFrame()
                 fu->nRects = Swap16IfLE(rectCount);
             }
 
-            switch (video.getPixelformat())
+            switch (video.getPixelFormat())
             {
                 case V4L2_PIX_FMT_RGB565:
                     framebuffer.assign(data, data + video.getFrameSize());
