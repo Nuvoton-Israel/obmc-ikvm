@@ -460,6 +460,10 @@ rfbNuHextiles16HW(rfbClientPtr cl, int rx, int ry, int rw, int rh)
 
 retry:
 	offset = rfbNuGetHextieDataOffset(nurfb);
+	if ((offset + (rw * rh * 2)) >= 0x400000) {
+		rfbNuClearHextieDataOffset(nurfb);
+		offset = rfbNuGetHextieDataOffset(nurfb);
+	}
 
 	cmd.x = rx;
 	cmd.y = ry;
@@ -478,12 +482,6 @@ retry:
 	rfbLog("offset %d cmd.len %d cmd.gap_len %d \n", offset,  cmd.len, cmd.gap_len);
 	rfbLog("frame size %d map size %d \n",  nurfb->frame_size,  nurfb->raw_hextile_mmap);
 #endif
-
-	if (((cmd.gap_len + offset + cmd.len) >= nurfb->raw_hextile_mmap) || (cmd.len <= 1))
-	{
-		rfbNuClearHextieDataOffset(nurfb);
-		goto retry;
-	}
 
 	copy_addr = nurfb->raw_hextile_addr + cmd.gap_len + offset;
 
