@@ -197,6 +197,8 @@ class Video
     uint32_t pixelFormat;
     /* @brief Pixel format that we want to use */
     uint32_t wantedPixelFormat;
+    /* @brief Current capture mode that driver used */
+    int curCaptureMode;
 };
 
 } // namespace ikvm

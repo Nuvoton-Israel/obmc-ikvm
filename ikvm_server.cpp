@@ -190,10 +190,13 @@ void Server::sendFrame()
         if (!data)
             return;
 
-        if (captureModeCounter && --captureModeCounter == 0)
-        {
+        if(captureModeCounter == COMPLETE_FRAME_COUNT)
+            video.setCaptureMode(true);
+
+        if (captureModeCounter != 0)
+            captureModeCounter--;
+        else
             video.setCaptureMode(false);
-        }
 
         rectCount = video.getRectCount();
 
@@ -287,7 +290,6 @@ enum rfbNewClientAction Server::newClient(rfbClientPtr cl)
         new ClientData(server->video.getFrameRate(), &server->input);
     cl->clientGoneHook = clientGone;
     cl->clientFramebufferUpdateRequestHook = clientFramebufferUpdateRequest;
-    server->video.setCaptureMode(true);
     server->captureModeCounter = COMPLETE_FRAME_COUNT;
 
     if (!server->numClients++)
@@ -387,8 +389,6 @@ void Server::doResize()
     }
 
     rfbReleaseClientIterator(it);
-
-    video.setCaptureMode(true);
     captureModeCounter = COMPLETE_FRAME_COUNT;
 }
 

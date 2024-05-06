@@ -54,6 +54,12 @@ void Video::setCaptureMode(bool completeFrame)
 
     control.value = completeFrame ? V4L2_NPCM_CAPTURE_MODE_COMPLETE :
                     V4L2_NPCM_CAPTURE_MODE_DIFF;
+
+    if (control.value == curCaptureMode)
+    {
+        return;
+    }
+
     control.id = V4L2_CID_NPCM_CAPTURE_MODE;
 
     rc = ioctl(fd, VIDIOC_S_CTRL, &control);
@@ -61,6 +67,10 @@ void Video::setCaptureMode(bool completeFrame)
     {
         log<level::ERR>("Failed to set control",
             entry("ERROR=%s", strerror(errno)));
+    }
+    else
+    {
+        curCaptureMode = control.value;
     }
 }
 
