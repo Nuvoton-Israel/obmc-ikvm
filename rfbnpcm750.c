@@ -483,6 +483,12 @@ retry:
 	rfbLog("frame size %d map size %d \n",  nurfb->frame_size,  nurfb->raw_hextile_mmap);
 #endif
 
+	if (((cmd.gap_len + offset + cmd.len) >= nurfb->raw_hextile_mmap) || (cmd.len <= 1))
+	{
+		rfbNuClearHextieDataOffset(nurfb);
+		goto retry;
+	}
+
 	copy_addr = nurfb->raw_hextile_addr + cmd.gap_len + offset;
 
 	rect.r.x = Swap16IfLE(rx);
