@@ -141,6 +141,8 @@ void Server::checkClientFormat()
         video.setWantedPixelFormat(format);
         video.restart();
     }
+
+    rfbReleaseClientIterator(it);
 }
 
 void Server::sendFrame()
