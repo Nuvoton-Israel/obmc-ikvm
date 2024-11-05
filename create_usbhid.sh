@@ -143,7 +143,7 @@ connect_hid() {
 }
 
 disconnect_hid() {
-    if [[ `cat UDC` =~ "${dev_name}:p" ]]; then
+    if [[ `cat UDC` =~ "${dev_name}" ]]; then
         echo "" > UDC
     fi
 }
