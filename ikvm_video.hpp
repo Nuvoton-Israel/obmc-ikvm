@@ -35,7 +35,7 @@ class Video
      *
      * @return Pointer to the video frame data
      */
-    char* getData();
+    char* getData(int plane_no);
     /* @brief Performs read to grab latest video frame */
     void getFrame();
     /*
@@ -71,9 +71,9 @@ class Video
      *
      * @return Value of the size of the video frame data in bytes
      */
-    inline size_t getFrameSize() const
+    inline size_t getFrameSize(int plane_no) const
     {
-        return buffers[lastFrameIndex].payload;
+        return buffers[lastFrameIndex].payload[plane_no];
     }
     /*
      * @brief Gets the height of the video frame
@@ -130,6 +130,13 @@ class Video
         subSampling = _sub;
     }
 
+    inline int getBytesPerPixel() const
+    {
+        return bytesPerPixel;
+    }
+
+    void alignFrame(char* data, char* alignedFrame);
+
     unsigned int getRectCount();
 
     void setCaptureMode(bool completeFrame);
@@ -145,6 +152,7 @@ class Video
     static const int bytesPerPixel;
     /* @brief Number of components in a pixel (i.e. 3 for RGB pixel) */
     static const int samplesPerPixel;
+    static const int FMT_NUM_PLANES = 2;
 
   private:
     /*
@@ -162,10 +170,10 @@ class Video
         Buffer(Buffer&&) = default;
         Buffer& operator=(Buffer&&) = default;
 
-        void* data;
+        void* data[FMT_NUM_PLANES];
         bool queued;
-        size_t payload;
-        size_t size;
+        size_t payload[FMT_NUM_PLANES];
+        size_t size[FMT_NUM_PLANES];
     };
 
     /*

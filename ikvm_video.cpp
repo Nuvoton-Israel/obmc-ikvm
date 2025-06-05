@@ -98,11 +98,13 @@ unsigned int Video::getRectCount()
     return control.value;
 }
 
-char* Video::getData()
+char* Video::getData(int plane_no)
 {
-    if (lastFrameIndex >= 0)
+
+    if (lastFrameIndex >= 0 && plane_no < FMT_NUM_PLANES &&
+        buffers[lastFrameIndex].data[plane_no])
     {
-        return (char*)buffers[lastFrameIndex].data;
+        return (char*)buffers[lastFrameIndex].data[plane_no];
     }
 
     return nullptr;
@@ -115,6 +117,7 @@ void Video::getFrame()
     v4l2_buffer buf;
     fd_set fds;
     timeval tv;
+    v4l2_plane planes[FMT_NUM_PLANES];
 
     if (fd < 0)
     {
@@ -128,8 +131,10 @@ void Video::getFrame()
     tv.tv_usec = 0;
 
     memset(&buf, 0, sizeof(v4l2_buffer));
-    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     buf.memory = V4L2_MEMORY_MMAP;
+    buf.length = FMT_NUM_PLANES;
+    buf.m.planes = planes;
 
     // Switch to non-blocking in order to safely dequeue all buffers; if the
     // video signal is lost while blocking to dequeue, the video driver may
@@ -150,12 +155,18 @@ void Video::getFrame()
                 if (!(buf.flags & V4L2_BUF_FLAG_ERROR))
                 {
                     lastFrameIndex = buf.index;
-                    buffers[lastFrameIndex].payload = buf.bytesused;
+                    for (unsigned int i = 0; i < buf.length; i++)
+                    {
+                        buffers[lastFrameIndex].payload[i] = buf.m.planes[i].bytesused;
+                    }
                     break;
                 }
                 else
                 {
-                    buffers[buf.index].payload = 0;
+                    for (unsigned int i = 0; i < buf.length; i++)
+                    {
+                        buffers[buf.index].payload[i] = 0;
+                    }
                 }
             }
         } while (rc >= 0);
@@ -173,9 +184,11 @@ void Video::getFrame()
         if (!buffers[i].queued)
         {
             memset(&buf, 0, sizeof(v4l2_buffer));
-            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+            buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
             buf.memory = V4L2_MEMORY_MMAP;
             buf.index = i;
+            buf.length = FMT_NUM_PLANES;
+            buf.m.planes = planes;
 
             rc = ioctl(fd, VIDIOC_QBUF, &buf);
             if (rc)
@@ -268,9 +281,9 @@ bool Video::needsResize()
 void Video::resize()
 {
     int rc;
-    unsigned int i;
+    unsigned int i, j;
     bool needsResizeCall(false);
-    v4l2_buf_type type(V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    v4l2_buf_type type(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
     v4l2_requestbuffers req;
 
     if (fd < 0)
@@ -286,7 +299,7 @@ void Video::resize()
 
     for (i = 0; i < buffers.size(); ++i)
     {
-        if (buffers[i].data)
+        if (buffers[i].data[0])
         {
             needsResizeCall = true;
             break;
@@ -310,11 +323,14 @@ void Video::resize()
 
     for (i = 0; i < buffers.size(); ++i)
     {
-        if (buffers[i].data)
+        for (j = 0; j < FMT_NUM_PLANES; ++j)
         {
-            munmap(buffers[i].data, buffers[i].size);
-            buffers[i].data = nullptr;
-            buffers[i].queued = false;
+            if (buffers[i].data[j])
+            {
+                munmap(buffers[i].data[j], buffers[i].size[j]);
+                buffers[i].data[j] = nullptr;
+                buffers[i].queued = false;
+            }
         }
     }
 
@@ -324,7 +340,7 @@ void Video::resize()
 
         memset(&req, 0, sizeof(v4l2_requestbuffers));
         req.count = 0;
-        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         req.memory = V4L2_MEMORY_MMAP;
         rc = ioctl(fd, VIDIOC_REQBUFS, &req);
         if (rc < 0)
@@ -364,8 +380,8 @@ void Video::resize()
     }
 
     memset(&req, 0, sizeof(v4l2_requestbuffers));
-    req.count = 3;
-    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    req.count = 2;
+    req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     req.memory = V4L2_MEMORY_MMAP;
     rc = ioctl(fd, VIDIOC_REQBUFS, &req);
     if (rc < 0 || req.count < 2)
@@ -384,11 +400,14 @@ void Video::resize()
     for (i = 0; i < buffers.size(); ++i)
     {
         v4l2_buffer buf;
+	    v4l2_plane planes[FMT_NUM_PLANES];
 
         memset(&buf, 0, sizeof(v4l2_buffer));
-        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
         buf.memory = V4L2_MEMORY_MMAP;
         buf.index = i;
+	    buf.length = FMT_NUM_PLANES;
+	    buf.m.planes = planes;
 
         rc = ioctl(fd, VIDIOC_QUERYBUF, &buf);
         if (rc < 0)
@@ -402,20 +421,24 @@ void Video::resize()
                     CALLOUT_DEVICE_PATH(path.c_str()));
         }
 
-        buffers[i].data = mmap(NULL, buf.length, PROT_READ | PROT_WRITE,
-                               MAP_SHARED, fd, buf.m.offset);
-        if (buffers[i].data == MAP_FAILED)
+        for (j = 0; j < FMT_NUM_PLANES; ++j)
         {
-            log<level::ERR>("Failed to mmap buffer",
-                            entry("ERROR=%s", strerror(errno)));
-            elog<ReadFailure>(
-                xyz::openbmc_project::Common::Device::ReadFailure::
-                    CALLOUT_ERRNO(errno),
-                xyz::openbmc_project::Common::Device::ReadFailure::
-                    CALLOUT_DEVICE_PATH(path.c_str()));
-        }
+            buffers[i].data[j] = mmap(NULL, buf.m.planes[j].length,
+                                        PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+                                        buf.m.planes[j].m.mem_offset);
+            buffers[i].size[j] = buf.m.planes[j].length;
 
-        buffers[i].size = buf.length;
+            if (buffers[i].data[j] == MAP_FAILED)
+            {
+                log<level::ERR>("Failed to mmap buffer",
+                                entry("ERROR=%s", strerror(errno)));
+                elog<ReadFailure>(
+                    xyz::openbmc_project::Common::Device::ReadFailure::
+                        CALLOUT_ERRNO(errno),
+                    xyz::openbmc_project::Common::Device::ReadFailure::
+                        CALLOUT_DEVICE_PATH(path.c_str()));
+            }
+        }
 
         rc = ioctl(fd, VIDIOC_QBUF, &buf);
         if (rc < 0)
@@ -497,15 +520,15 @@ void Video::start()
     }
 
     memset(&fmt, 0, sizeof(v4l2_format));
-    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.pixelformat = wantedPixelFormat;
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    fmt.fmt.pix_mp.pixelformat = wantedPixelFormat;
+    fmt.fmt.pix_mp.num_planes = FMT_NUM_PLANES;
     rfbLog("Wanted pixelformat fourcc = %x\n", wantedPixelFormat);
-
     rc = ioctl(fd, VIDIOC_S_FMT, &fmt);
     if (rc < 0)
     {
         log<level::ERR>("Failed to set format",
-                        entry("ERROR=%s", strerror(errno)));
+            entry("ERROR=%s", strerror(errno)));
     }
 
     rc = ioctl(fd, VIDIOC_G_FMT, &fmt);
@@ -521,7 +544,7 @@ void Video::start()
     }
 
     memset(&sparm, 0, sizeof(v4l2_streamparm));
-    sparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    sparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
     sparm.parm.capture.timeperframe.numerator = 1;
     sparm.parm.capture.timeperframe.denominator = frameRate;
     rc = ioctl(fd, VIDIOC_S_PARM, &sparm);
@@ -541,12 +564,10 @@ void Video::start()
                             entry("ERROR=%s", strerror(errno)));
     }
 
-    height = fmt.fmt.pix.height;
-    width = fmt.fmt.pix.width;
-
-    pixelFormat = fmt.fmt.pix.pixelformat;
+    height = fmt.fmt.pix_mp.height;
+    width =  fmt.fmt.pix_mp.width;
+    pixelFormat = fmt.fmt.pix_mp.pixelformat;
     rfbLog("Actual pixelformat fourcc = %x\n", pixelFormat);
-
     memset(&sub, 0, sizeof(v4l2_event_subscription));
     sub.type = V4L2_EVENT_SOURCE_CHANGE;
 
@@ -565,11 +586,35 @@ void Video::start()
     }
 }
 
+void Video::alignFrame(char* data, char* alignedFrame)
+{
+    if (data == nullptr || alignedFrame == nullptr)
+    {
+        return;
+    }
+
+    size_t bytes = 0;
+    size_t len = 0;
+    size_t offset = 0;
+    int bytesPerLine = buffers[lastFrameIndex].payload[0] / height;
+
+    // Align the frame data
+    for (size_t i = 0; i < height; i++) {
+		len = width * bytesPerPixel;
+		offset = i * bytesPerLine;
+
+		memcpy(alignedFrame + bytes, data + offset, len);
+		bytes += len;
+	}
+
+    return;
+}
+
 void Video::stop()
 {
     int rc;
-    unsigned int i;
-    v4l2_buf_type type(V4L2_BUF_TYPE_VIDEO_CAPTURE);
+    unsigned int i, j;
+    v4l2_buf_type type(V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
     v4l2_event_subscription sub;
 
     if (fd < 0)
@@ -598,13 +643,18 @@ void Video::stop()
 
     for (i = 0; i < buffers.size(); ++i)
     {
-        if (buffers[i].data)
+        for (j = 0; j < FMT_NUM_PLANES; ++j)
         {
-            munmap(buffers[i].data, buffers[i].size);
-            buffers[i].data = nullptr;
-            buffers[i].queued = false;
+            if (buffers[i].data[j])
+            {
+                munmap(buffers[i].data[j], buffers[i].size[j]);
+                buffers[i].data[j] = nullptr;
+                buffers[i].payload[j] = 0;
+                buffers[i].queued = false;
+            }
         }
     }
+
 
     close(fd);
     fd = -1;

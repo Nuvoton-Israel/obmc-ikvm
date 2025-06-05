@@ -147,6 +147,7 @@ void Server::checkClientFormat()
 
 void Server::sendFrame()
 {
+    char* rawData = nullptr;
     char* data = nullptr;
     rfbClientIteratorPtr it;
     rfbClientPtr cl;
@@ -187,10 +188,18 @@ void Server::sendFrame()
     if (!anyClientSkipFrame && anyClientNeedUpdate)
     {
         video.getFrame();
-        data = video.getData();
+        rawData = video.getData(0);
+        data = video.getData(1);
 
-        if (!data)
+        if (!rawData || !data)
+        {
+            log<level::ERR>("Failed to get video frame data");
             return;
+        }
+
+        size_t align_size = video.getHeight() * video.getWidth() * video.getBytesPerPixel();
+        std::vector<char> alignedFrame(align_size, 0);
+        video.alignFrame(rawData, alignedFrame.data());
 
         if(captureModeCounter == COMPLETE_FRAME_COUNT)
             video.setCaptureMode(true);
@@ -227,7 +236,7 @@ void Server::sendFrame()
             switch (video.getPixelFormat())
             {
                 case V4L2_PIX_FMT_RGB565:
-                    framebuffer.assign(data, data + video.getFrameSize());
+                    framebuffer.assign(alignedFrame.data(), alignedFrame.data() + alignedFrame.size());
                     rfbMarkRectAsModified(server, 0, 0, video.getWidth(),
                                           video.getHeight());
                     break;
@@ -237,7 +246,7 @@ void Server::sendFrame()
                     cl->ublen = sz_rfbFramebufferUpdateMsg;
                     rfbSendUpdateBuf(cl);
 
-                    rfbSendCompressedDataHextile(cl, data, video.getFrameSize());
+                    rfbSendCompressedDataHextile(cl, data, video.getFrameSize(1));
 
                     if (cl->enableLastRectEncoding)
                     {
