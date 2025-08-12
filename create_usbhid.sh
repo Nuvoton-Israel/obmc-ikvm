@@ -1,12 +1,26 @@
 #!/bin/sh
 
 hid_conf_directory="/sys/kernel/config/usb_gadget/obmc_hid"
-dev_name="1e6a0000.usb-vhub"
+
+version_above_5(){
+  MAJOR_VERSION=$(uname -r | awk -F '.' '{print $1}')
+  if [ $MAJOR_VERSION -ge 6 ]  ; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+dev_name="f0830000.udc"
+if version_above_5
+then
+  dev_name="ci_hdrc.0"
+fi
 
 create_hid() {
     # create gadget
     mkdir "${hid_conf_directory}"
-    cd "${hid_conf_directory}" || exit 1
+    cd "${hid_conf_directory}"
 
     # add basic information
     echo 0x0100 > bcdDevice
@@ -18,7 +32,7 @@ create_hid() {
     mkdir strings/0x409
 
     echo "OpenBMC" > strings/0x409/manufacturer
-    echo "Virtual Keyboard and Mouse" > strings/0x409/product
+    echo "virtual_input" > strings/0x409/product
     echo "OBMC0001" > strings/0x409/serialnumber
 
     # Create HID keyboard function
@@ -61,7 +75,7 @@ create_hid() {
     #  0x29, 0x65, //   USAGE_MAXIMUM (Keyboard Application)
     #  0x81, 0x00, //   INPUT (Data,Ary,Abs)
     #  0xc0        // END_COLLECTION
-    printf '\x05\x01\x09\x06\xa1\x01\x05\x07\x19\xe0\x29\xe7\x15\x00\x25\x01\x75\x01\x95\x08\x81\x02\x95\x01\x75\x08\x81\x03\x95\x05\x75\x01\x05\x08\x19\x01\x29\x05\x91\x02\x95\x01\x75\x03\x91\x03\x95\x06\x75\x08\x15\x00\x25\x65\x05\x07\x19\x00\x29\x65\x81\x00\xc0' > functions/hid.0/report_desc
+    echo -ne '\x05\x01\x09\x06\xa1\x01\x05\x07\x19\xe0\x29\xe7\x15\x00\x25\x01\x75\x01\x95\x08\x81\x02\x95\x01\x75\x08\x81\x03\x95\x05\x75\x01\x05\x08\x19\x01\x29\x05\x91\x02\x95\x01\x75\x03\x91\x03\x95\x06\x75\x08\x15\x00\x25\x65\x05\x07\x19\x00\x29\x65\x81\x00\xc0' > functions/hid.0/report_desc
 
     # Create HID mouse function
     mkdir functions/hid.1
@@ -109,7 +123,7 @@ create_hid() {
     #  0x81, 0x06,       //     INPUT (Data,Var,Rel)
     #  0xc0,             //   END_COLLECTION
     #  0xc0              // END_COLLECTION
-    printf '\x05\x01\x09\x02\xa1\x01\x09\x01\xa1\x00\x05\x09\x19\x01\x29\x03\x15\x00\x25\x01\x95\x03\x75\x01\x81\x02\x95\x01\x75\x05\x81\x03\x05\x01\x09\x30\x09\x31\x35\x00\x46\xff\x7f\x15\x00\x26\xff\x7f\x65\x11\x55\x00\x75\x10\x95\x02\x81\x02\x09\x38\x15\xff\x25\x01\x35\x00\x45\x00\x75\x08\x95\x01\x81\x06\xc0\xc0' > functions/hid.1/report_desc
+    echo -ne '\x05\x01\x09\x02\xa1\x01\x09\x01\xa1\x00\x05\x09\x19\x01\x29\x03\x15\x00\x25\x01\x95\x03\x75\x01\x81\x02\x95\x01\x75\x05\x81\x03\x05\x01\x09\x30\x09\x31\x35\x00\x46\xff\x7f\x15\x00\x26\xff\x7f\x65\x11\x55\x00\x75\x10\x95\x02\x81\x02\x09\x38\x15\xff\x25\x01\x35\x00\x45\x00\x75\x08\x95\x01\x81\x06\xc0\xc0' > functions/hid.1/report_desc
 
     # Create configuration
     mkdir configs/c.1
@@ -125,31 +139,21 @@ create_hid() {
 }
 
 connect_hid() {
-    if ! grep -q "${dev_name}:p" UDC; then
-        i=0
-        num_ports=5
-        base_usb_dir="/sys/bus/platform/devices/${dev_name}/${dev_name}:p"
-        while [ "${i}" -lt "${num_ports}" ]; do
-            port=$(("${i}" + 1))
-            i="${port}"
-            if [ ! -e "${base_usb_dir}${port}/gadget/suspended" ]; then
-                break
-            fi
-        done
-        echo "${dev_name}:p${port}" > UDC
-    fi
+     echo "${dev_name}" > UDC
 }
 
 disconnect_hid() {
-    if grep -q "${dev_name}:p" UDC; then
+    if [[ `cat UDC` =~ "${dev_name}" ]]; then
         echo "" > UDC
     fi
 }
 
+original_directory="$(pwd)"
+
 if [ ! -e "${hid_conf_directory}" ]; then
     create_hid
 else
-    cd "${hid_conf_directory}" || exit 1
+    cd "${hid_conf_directory}"
 fi
 
 if [ "$1" = "connect" ]; then
@@ -157,6 +161,7 @@ if [ "$1" = "connect" ]; then
 elif [ "$1" = "disconnect" ]; then
     disconnect_hid
 else
-    echo >&2 "Invalid option: $1. Use 'connect' or 'disconnect'."
-    exit 1
+    echo "Invalid option: $1. Use 'connect' or 'disconnect'."
 fi
+
+cd "${original_directory}"

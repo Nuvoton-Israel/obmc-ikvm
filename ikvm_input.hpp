@@ -10,6 +10,7 @@
 
 namespace ikvm
 {
+
 /*
  * @class Input
  * @brief Receives events from RFB clients and sends reports to the USB input
@@ -23,10 +24,8 @@ class Input
      *
      * @param[in] kbdPath - Path to the USB keyboard device
      * @param[in] ptrPath - Path to the USB mouse device
-     * @param[in] udc - Name of UDC
      */
-    Input(const std::string& kbdPath, const std::string& ptrPath,
-          const std::string& udc);
+    Input(const std::string& kbdPath, const std::string& ptrPath);
     ~Input();
     Input(const Input&) = default;
     Input& operator=(const Input&) = default;
@@ -83,7 +82,7 @@ class Input
         "/sys/kernel/config/usb_gadget/obmc_hid/UDC";
     /* @brief Path to the USB virtual hub */
     static constexpr const char* usbVirtualHubPath =
-        "/sys/bus/platform/devices/1e6a0000.usb-vhub";
+        "/sys/bus/platform/devices/f0830000.udc";
     /* @brief Retry limit for writing an HID report */
     static constexpr int HID_REPORT_RETRY_MAX = 5;
     /*
@@ -114,8 +113,6 @@ class Input
     std::string keyboardPath;
     /* @brief Path to the USB mouse device */
     std::string pointerPath;
-    /* @brief Name of UDC */
-    std::string udcName;
     /*
      * @brief Mapping of RFB key code to report data index to keep track
      *        of which keys are down

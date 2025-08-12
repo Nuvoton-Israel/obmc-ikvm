@@ -32,7 +32,7 @@ using namespace sdbusplus::xyz::openbmc_project::Common::Device::Error;
 
 Video::Video(const std::string& p, Input& input, int fr, int sub) :
     resizeAfterOpen(false), timingsError(false), fd(-1), frameRate(fr),
-    lastFrameIndex(-1), height(600), width(800), subSampling(sub), input(input),
+    lastFrameIndex(-1), height(1080), width(1920), subSampling(sub), input(input),
     path(p), pixelformat(V4L2_PIX_FMT_JPEG)
 {}
 
@@ -136,7 +136,8 @@ void Video::getFrame()
 
 bool Video::needsResize()
 {
-    int rc;
+    return false;
+  //  int rc;
     v4l2_dv_timings timings;
 
     if (fd < 0)
@@ -149,6 +150,7 @@ bool Video::needsResize()
         return true;
     }
 
+/*
     memset(&timings, 0, sizeof(v4l2_dv_timings));
     rc = ioctl(fd, VIDIOC_QUERY_DV_TIMINGS, &timings);
     if (rc < 0)
@@ -167,7 +169,7 @@ bool Video::needsResize()
     {
         timingsError = false;
     }
-
+*/
     if (timings.bt.width != width || timings.bt.height != height)
     {
         width = timings.bt.width;
@@ -422,6 +424,19 @@ void Video::start()
 
     memset(&fmt, 0, sizeof(v4l2_format));
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+    fmt.fmt.pix.height = height;
+    fmt.fmt.pix.width = width;
+
+    rc = ioctl(fd, VIDIOC_S_FMT, &fmt);
+    if (rc < 0)
+    {
+        log<level::ERR>("Failed to set format",
+                        entry("ERROR=%s", strerror(errno)));
+    }
+
+    memset(&fmt, 0, sizeof(v4l2_format));
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     rc = ioctl(fd, VIDIOC_G_FMT, &fmt);
     if (rc < 0)
     {
@@ -459,7 +474,8 @@ void Video::start()
     width = fmt.fmt.pix.width;
     pixelformat = fmt.fmt.pix.pixelformat;
 
-    if (pixelformat != V4L2_PIX_FMT_RGB24 && pixelformat != V4L2_PIX_FMT_JPEG)
+    if (pixelformat != V4L2_PIX_FMT_RGB24 && pixelformat != V4L2_PIX_FMT_JPEG &&
+        pixelformat != V4L2_PIX_FMT_YUYV && pixelformat != V4L2_PIX_FMT_MJPEG)
     {
         log<level::ERR>("Pixel Format not supported",
                         entry("PIXELFORMAT=%d", pixelformat));

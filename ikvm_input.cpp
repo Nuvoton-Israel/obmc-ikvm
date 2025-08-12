@@ -19,16 +19,18 @@ namespace fs = std::filesystem;
 
 namespace ikvm
 {
+
 using namespace phosphor::logging;
 using namespace sdbusplus::xyz::openbmc_project::Common::File::Error;
 
-Input::Input(const std::string& kbdPath, const std::string& ptrPath,
-             const std::string& udc) :
+Input::Input(const std::string& kbdPath, const std::string& ptrPath) :
     keyboardFd(-1), pointerFd(-1), keyboardReport{0}, pointerReport{0},
-    keyboardPath(kbdPath), pointerPath(ptrPath), udcName(udc)
+    keyboardPath(kbdPath), pointerPath(ptrPath)
 {
+#if 0
     hidUdcStream.exceptions(std::ofstream::failbit | std::ofstream::badbit);
     hidUdcStream.open(hidUdcPath, std::ios::out | std::ios::app);
+#endif
 }
 
 Input::~Input()
@@ -49,44 +51,17 @@ Input::~Input()
 
 void Input::connect()
 {
+#if 0
     try
     {
-        if (udcName.empty())
+        for (const auto& port : fs::directory_iterator(usbVirtualHubPath))
         {
-            bool found = false;
-            for (const auto& port : fs::directory_iterator(usbVirtualHubPath))
+            if (fs::is_directory(port) && !fs::is_symlink(port))
             {
-                // /sys/bus/platform/devices/1e6a0000.usb-vhub/1e6a0000.usb-vhub:pX
-                if (fs::is_directory(port) && !fs::is_symlink(port))
-                {
-                    for (const auto& gadget :
-                         fs::directory_iterator(port.path()))
-                    {
-                        // Kernel 6.0:
-                        // /sys/.../1e6a0000.usb-vhub:pX/gadget.Y/suspended
-                        // Kernel 5.15:
-                        // /sys/.../1e6a0000.usb-vhub:pX/gadget/suspended
-                        if (fs::is_directory(gadget) &&
-                            gadget.path().string().find("gadget") !=
-                                std::string::npos &&
-                            !fs::exists(gadget.path() / "suspended"))
-                        {
-                            const std::string portId = port.path().filename();
-                            hidUdcStream << portId << std::endl;
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if (found)
-                {
-                    break;
-                }
+                const std::string portId = port.path().filename();
+                hidUdcStream << portId << std::endl;
+                break;
             }
-        }
-        else // If UDC has been specified by '-u' parameter, connect to it.
-        {
-            hidUdcStream << udcName << std::endl;
         }
     }
     catch (fs::filesystem_error& e)
@@ -101,7 +76,7 @@ void Input::connect()
                         entry("ERROR=%s", e.what()));
         return;
     }
-
+#endif
     if (!keyboardPath.empty())
     {
         keyboardFd =
@@ -145,7 +120,7 @@ void Input::disconnect()
         close(pointerFd);
         pointerFd = -1;
     }
-
+#if 0
     try
     {
         hidUdcStream << "" << std::endl;
@@ -155,6 +130,7 @@ void Input::disconnect()
         log<level::ERR>("Failed to disconnect HID gadget",
                         entry("ERROR=%s", e.what()));
     }
+#endif
 }
 
 void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
@@ -233,6 +209,19 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
     Input* input = cd->input;
     Server* server = (Server*)cl->screen->screenData;
     const Video& video = server->getVideo();
+    rfbClientIteratorPtr it;
+    rfbClientPtr clientPtr;
+    rfbScreenInfoPtr screenPtr = cl->screen;
+
+     // sync cursor position for each client to prevent server
+     // from updating cursor by rfbSendRectEncodingHextile
+    it = rfbGetClientIterator(screenPtr);
+    while ((clientPtr = rfbClientIteratorNext(it)))
+    {
+        clientPtr->screen->cursorX = clientPtr->cursorX = x;
+        clientPtr->screen->cursorY = clientPtr->cursorY = y;
+    }
+    rfbReleaseClientIterator(it);
 
     if (input->pointerFd < 0)
     {
@@ -253,9 +242,9 @@ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
     }
     else
     {
-        input->pointerReport[0] =
-            ((buttonMask & 0x4) >> 1) | ((buttonMask & 0x2) << 1) |
-            (buttonMask & 0x1);
+        input->pointerReport[0] = ((buttonMask & 0x4) >> 1) |
+                                  ((buttonMask & 0x2) << 1) |
+                                  (buttonMask & 0x1);
         input->pointerReport[5] = 0;
     }
 

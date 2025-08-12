@@ -46,7 +46,7 @@ Server::Server(const Args& args, Input& i, Video& v) :
     server->cursor->xhot = 1;
     server->cursor->yhot = 1;
 
-    rfbStringToAddr(&ip[0], &server->listenInterface);
+  //  rfbStringToAddr(&ip[0], &server->listenInterface);
 
     rfbInitServer(server);
 
@@ -165,6 +165,7 @@ void Server::sendFrame()
                                       video.getHeight());
                 break;
 
+            case V4L2_PIX_FMT_MJPEG:
             case V4L2_PIX_FMT_JPEG:
                 fu->type = rfbFramebufferUpdate;
                 cl->ublen = sz_rfbFramebufferUpdateMsg;
